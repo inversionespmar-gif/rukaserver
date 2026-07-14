@@ -11,13 +11,12 @@ export function createResolver({ fetchImpl = fetch, cache, hosts = {} } = {}) {
       if (cached) return cached;
     }
     const host = detectHost(url);
-    const fn = hosts[host] || (() => genericResolve(url, { fetchImpl }));
+    const hostFn = hosts[host];
     let result = null;
     try {
-      const specific = hosts[host]
-        ? await hosts[host](url, { fetchImpl })
+      result = hostFn
+        ? await hostFn(url, { fetchImpl })
         : await genericResolve(url, { fetchImpl });
-      result = specific;
     } catch {
       result = null;
     }
