@@ -40,3 +40,19 @@ export function createResolver({ fetchImpl = fetch, cache, hosts = {} } = {}) {
     },
   };
 }
+
+import { resolveVimeos } from "./hosts/vimeos.js";
+import { resolveHlswish } from "./hosts/hlswish.js";
+import { resolveVoe } from "./hosts/voe.js";
+import { resolveGoodstream } from "./hosts/goodstream.js";
+
+export function createDefaultResolver({ fetchImpl = fetch, cache, hosts = {} } = {}) {
+  const merged = {
+    "vimeos.net": resolveVimeos,
+    "hlswish.com": resolveHlswish,
+    "voe.sx": resolveVoe,
+    "goodstream.one": resolveGoodstream,
+    ...hosts,
+  };
+  return createResolver({ fetchImpl, cache, hosts: merged });
+}
