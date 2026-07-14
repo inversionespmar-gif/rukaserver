@@ -8,12 +8,16 @@ import { createUsersRepository } from "./src/repositories/users.js";
 import { createCatalogRepository } from "./src/repositories/catalog.js";
 import { createCache } from "./src/cache.js";
 import { createDefaultResolver } from "./src/resolver/index.js";
+import { resolveWithBrowser } from "./src/resolver/browser.js";
 
 const config = loadConfig();
 const supabase = createSupabase(config);
 const auth = createAuth(createUsersRepository(supabase));
 const catalog = createCatalogRepository(supabase);
-const resolver = createDefaultResolver({ cache: createCache({ ttlMs: 60 * 60 * 1000 }) });
+const resolver = createDefaultResolver({
+  cache: createCache({ ttlMs: 60 * 60 * 1000 }),
+  browserResolve: resolveWithBrowser,
+});
 
 const app = createApp({ auth, catalog, config, resolver });
 registerXtreamRoutes(app, { auth, catalog, config });

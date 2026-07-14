@@ -78,3 +78,22 @@ test("goodstream resolver extracts embed source", async () => {
   const r = await resolveGoodstream("https://goodstream.one/embed-x", { fetchImpl: fakeFetch });
   assert.equal(r.url, "https://goodstream.one/v/abc.m3u8");
 });
+
+test("resolver falls back to browserResolve when fetch fails", async () => {
+  const cache = createCache({ ttlMs: 1000 });
+  const fakeFetch = async () => ({ ok: true, text: async () => `<html></html>` });
+  const browserResolve = async () => ({ url: "https://real.com/a.m3u8", type: "m3u8" });
+  const resolver = createResolver({ fetchImpl: fakeFetch, cache, browserResolve });
+  const r = await resolver.resolve(["https://h/x"]);
+  assert.equal(r.url, "https://real.com/a.m3u8");
+  assert.equal(r.type, "m3u8");
+});
+
+test("resolver returns null when both fetch and browser fail", async () => {
+  const cache = createCache({ ttlMs: 1000 });
+  const fakeFetch = async () => ({ ok: true, text: async () => `<html></html>` });
+  const browserResolve = async () => null;
+  const resolver = createResolver({ fetchImpl: fakeFetch, cache, browserResolve });
+  const r = await resolver.resolve(["https://h/x"]);
+  assert.equal(r, null);
+});
