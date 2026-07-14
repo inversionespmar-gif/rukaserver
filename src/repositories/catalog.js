@@ -83,6 +83,16 @@ export function createCatalogRepository(supabase) {
       }));
     },
 
+    async getEpisodePlayerUrls(episodeId) {
+      const { data, error } = await supabase
+        .from("series_episodes")
+        .select("player_urls")
+        .eq("id", episodeId)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? data.player_urls : null;
+    },
+
     async getSeriesInfo(seriesId) {
       const meta = await supabase.from("series_metadata").select("*").eq("id", seriesId).maybeSingle();
       if (meta.error) throw meta.error;

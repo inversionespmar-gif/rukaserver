@@ -20,3 +20,19 @@ test("rewriteM3u8 keeps comment lines", () => {
   assert.ok(out.includes("#EXTM3U"));
   assert.ok(out.includes("#EXT-X-ENDLIST"));
 });
+
+test("rewriteM3u8 rewrites EXT-X-KEY URI through proxy", () => {
+  const manifest = `#EXTM3U
+#EXT-X-KEY:METHOD=AES-128,URI="https://keys.com/k.bin"
+seg.ts
+`;
+  const out = rewriteM3u8(manifest, "https://cdn.com/a/", "/proxy/");
+  assert.ok(out.includes(encodeURIComponent("https://keys.com/k.bin")));
+  assert.ok(out.includes("#EXT-X-KEY:METHOD=AES-128"));
+});
+
+test("rewriteM3u8 leaves already-proxied URIs untouched", () => {
+  const manifest = `#EXT-X-KEY:METHOD=AES-128,URI="/proxy/https%3A%2F%2Fkeys.com%2Fk.bin"`;
+  const out = rewriteM3u8(manifest, "https://cdn.com/a/", "/proxy/");
+  assert.equal(out, manifest);
+});

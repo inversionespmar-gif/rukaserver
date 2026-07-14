@@ -92,3 +92,9 @@ test("getSeriesInfo groups episodes by season", async () => {
   assert.equal(info.episodes["1"][0].stream_id, 100);
   assert.equal(info.info.poster_path, "https://image.tmdb.org/t/p/w500/s.jpg");
 });
+
+test("getEpisodePlayerUrls returns player_urls for episode", async () => {
+  const repo = createCatalogRepository(makeFakeSupabase({ series_episodes: [{ id: 100, player_urls: '["https://x/e"]' }] }));
+  const r = await repo.getEpisodePlayerUrls(100);
+  assert.equal(r, '["https://x/e"]');
+});

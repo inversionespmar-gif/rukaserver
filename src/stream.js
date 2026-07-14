@@ -1,6 +1,5 @@
 import { rewriteM3u8 } from "./stream/hls.js";
 import { parseJsonArray } from "./repositories/catalog.js";
-import { createSupabase } from "./supabase.js";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
@@ -75,11 +74,9 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
   app.get("/series/:username/:password/:id.m3u8", async (req, res) => {
     const user = await requireAuth(req, res);
     if (!user) return;
-    let supabase;
-    try { supabase = createSupabase(config); } catch { return res.status(500).send("config_error"); }
-    const { data } = await supabase.from("series_episodes").select("player_urls").eq("id", req.params.id).maybeSingle();
-    if (!data) return res.status(404).end();
-    const urls = parseJsonArray(data.player_urls);
+    const playerUrls = await catalog.getEpisodePlayerUrls(req.params.id);
+    if (!playerUrls) return res.status(404).end();
+    const urls = parseJsonArray(playerUrls);
     const resolved = resolver ? await resolver.resolve(urls) : null;
     if (!resolved) return res.status(502).send("unresolved");
     if (resolved.type === "mp4") return res.redirect(302, resolved.url);
