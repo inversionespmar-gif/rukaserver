@@ -23,9 +23,14 @@ export function createCatalogRepository(supabase) {
     },
 
     async getLiveStreams(categoryId) {
-      const rows = categoryId
-        ? await (await supabase.from("tv_channels").select("*").eq("pais", categoryId).order("id")).data || []
-        : await all("tv_channels");
+      let rows;
+      if (categoryId) {
+        const { data, error } = await supabase.from("tv_channels").select("*").eq("pais", categoryId).order("id");
+        if (error) throw error;
+        rows = data || [];
+      } else {
+        rows = await all("tv_channels");
+      }
       return rows.map((c) => ({
         stream_id: c.id,
         name: c.canal,
@@ -80,14 +85,16 @@ export function createCatalogRepository(supabase) {
 
     async getSeriesInfo(seriesId) {
       const meta = await supabase.from("series_metadata").select("*").eq("id", seriesId).maybeSingle();
+      if (meta.error) throw meta.error;
       if (!meta.data) return null;
       const s = meta.data;
-      const { data: eps } = await supabase
+      const { data: eps, error: epsError } = await supabase
         .from("series_episodes")
         .select("*")
         .eq("tmdb_id", s.tmdb_id)
         .order("season_number")
         .order("episode_number");
+      if (epsError) throw epsError;
 
       const seasonsMap = new Map();
       const episodesBySeason = {};
