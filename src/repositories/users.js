@@ -3,7 +3,7 @@ export function createUsersRepository(supabase) {
     async findByCredentials(username, password) {
       const { data, error } = await supabase
         .from("users")
-        .select("id, username, password, exp_date, max_connections, is_trial, status")
+        .select("id, username, exp_date, max_connections, is_trial, status")
         .eq("username", username)
         .eq("password", password)
         .maybeSingle();

@@ -36,3 +36,18 @@ test("authenticate returns auth:0 when disabled", async () => {
   assert.equal(r.auth, 0);
   assert.match(r.message, /disabled/i);
 });
+
+test("authenticate returns auth:0 when credentials missing", async () => {
+  const auth = createAuth(makeRepo(null));
+  const r = await auth.authenticate("", "");
+  assert.equal(r.auth, 0);
+  assert.match(r.message, /Missing credentials/);
+});
+
+test("authenticate returns auth:0 on database error", async () => {
+  const throwingRepo = { async findByCredentials() { throw new Error("boom"); } };
+  const auth = createAuth(throwingRepo);
+  const r = await auth.authenticate("u", "p");
+  assert.equal(r.auth, 0);
+  assert.match(r.message, /Database error/);
+});
