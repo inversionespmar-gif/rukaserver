@@ -18,9 +18,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rukatv.iptv.data.remote.dto.SeriesItem
 import com.rukatv.iptv.data.repository.CatalogRepository
@@ -31,8 +33,7 @@ import com.rukatv.iptv.ui.components.PosterCard
 import com.rukatv.iptv.ui.theme.Background
 import com.rukatv.iptv.ui.viewmodel.SeriesViewModel
 import androidx.compose.runtime.LaunchedEffect
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun SeriesScreen(catalog: CatalogRepository, favorites: FavoritesRepository, onPlay: (String, String) -> Unit) {
@@ -59,6 +60,7 @@ fun SeriesScreen(catalog: CatalogRepository, favorites: FavoritesRepository, onP
 @Composable
 private fun SeriesDetail(series: SeriesItem, catalog: CatalogRepository, favorites: FavoritesRepository, onPlay: (String, String) -> Unit) {
     val favSet by favorites.favorites.collectAsStateWithLifecycle(emptySet())
+    val scope = rememberCoroutineScope()
     val favId = "series:${series.seriesId}"
     var info by remember { mutableStateOf<com.rukatv.iptv.data.remote.dto.SeriesInfo?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -73,7 +75,7 @@ private fun SeriesDetail(series: SeriesItem, catalog: CatalogRepository, favorit
     val data = info ?: return
     Column(Modifier.fillMaxSize().background(Background).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(series.name, color = com.rukatv.iptv.ui.theme.Accent, fontSize = 24.sp)
-        Button(onClick = { CoroutineScope(Dispatchers.IO).launch { favorites.toggle(favId) } }) {
+        Button(onClick = { scope.launch { favorites.toggle(favId) } }) {
             Text(if (favSet.contains(favId)) "★ Favorito" else "☆ Favorito")
         }
         data.seasons.forEach { season ->

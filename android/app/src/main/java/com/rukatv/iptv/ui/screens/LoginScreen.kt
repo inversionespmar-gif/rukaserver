@@ -18,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,8 +54,8 @@ private fun LabeledField(label: String, value: String, onChange: (String) -> Uni
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label, color = Accent, fontSize = 12.sp)
         BasicTextField(
-            value = TextFieldValue(value),
-            onValueChange = { onChange(it.text) },
+            value = value,
+            onValueChange = { onChange(it) },
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color(0xFF0C0F16))
                 .focusable().padding(12.dp),
             textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp),

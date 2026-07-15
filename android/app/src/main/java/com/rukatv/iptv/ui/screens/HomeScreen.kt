@@ -1,5 +1,6 @@
 package com.rukatv.iptv.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -8,7 +9,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.rukatv.iptv.AppState
 import com.rukatv.iptv.Screen
 import com.rukatv.iptv.data.repository.CatalogRepository
 import com.rukatv.iptv.data.repository.FavoritesRepository

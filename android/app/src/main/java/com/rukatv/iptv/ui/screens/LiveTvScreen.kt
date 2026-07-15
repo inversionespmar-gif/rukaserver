@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.utf16Value
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,9 +52,8 @@ import com.rukatv.iptv.ui.theme.Accent
 import com.rukatv.iptv.ui.theme.Background
 import com.rukatv.iptv.ui.theme.Surface
 import com.rukatv.iptv.ui.viewmodel.LiveTvViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun LiveTvScreen(
@@ -80,6 +79,7 @@ fun LiveTvScreen(
     var overlay by remember { mutableStateOf(false) }
 
     val favSet by favorites.favorites.collectAsStateWithLifecycle(emptySet())
+    val scope = rememberCoroutineScope()
 
     val player = remember {
         TvPlayer(context).apply {
@@ -116,7 +116,7 @@ fun LiveTvScreen(
 
     Box(Modifier.fillMaxSize().onKeyEvent { ev ->
         if (ev.type == KeyEventType.KeyDown) {
-            val c = ev.utf16Value
+            val c = ev.nativeKeyEvent.unicodeChar.toChar()
             if (c.isDigit()) {
                 numberBuffer += c
                 true
@@ -212,7 +212,7 @@ fun LiveTvScreen(
                     )
                     val favKey = "live:${filtered.getOrNull(selectedIndex)?.streamId}"
                     Button(
-                        onClick = { CoroutineScope(Dispatchers.IO).launch { favorites.toggle(favKey) } },
+                        onClick = { scope.launch { favorites.toggle(favKey) } },
                         modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
                     ) {
                         Text(if (favSet.contains(favKey)) "★" else "☆")

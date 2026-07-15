@@ -27,8 +27,8 @@ import com.rukatv.iptv.ui.theme.Accent
 fun PosterCard(
     title: String,
     poster: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused = interaction.collectIsFocusedAsState().value

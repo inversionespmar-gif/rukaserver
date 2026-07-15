@@ -1,0 +1,6 @@
+[
+    {
+        "merged": "com.rukatv.iptv.app-debug-51:/drawable_banner.xml.flat",
+        "source": "com.rukatv.iptv.app-main-53:/drawable/banner.xml"
+    }
+]
