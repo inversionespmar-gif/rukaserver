@@ -81,10 +81,9 @@ fun LiveTvScreen(
     val favSet by favorites.favorites.collectAsStateWithLifecycle(emptySet())
     val scope = rememberCoroutineScope()
 
-    val player = remember {
-        TvPlayer(context).apply {
-            if (filtered.isNotEmpty()) prepare(catalog.liveUrl(filtered[0].streamId))
-        }
+    val player = remember { TvPlayer(context) }
+    LaunchedEffect(Unit) {
+        if (filtered.isNotEmpty()) player.prepare(catalog.liveUrl(filtered[0].streamId))
     }
     DisposableEffect(Unit) { onDispose { player.release() } }
 
