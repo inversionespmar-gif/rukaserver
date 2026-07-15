@@ -3,6 +3,31 @@ import { parseJsonArray } from "./repositories/catalog.js";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
+// Short-lived tokens mapping to the referer/cookies captured at resolve time.
+// Embedded as ?t=<token> in proxied URLs so we don't bloat the URL with a
+// multi-KB cookie JSON (which breaks some players and splits on "|").
+const proxyTokens = new Map();
+const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function issueToken({ referer, cookies }) {
+  const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  proxyTokens.set(token, { referer: referer || "", cookies: cookies || [], exp: Date.now() + TOKEN_TTL_MS });
+  return token;
+}
+
+function consumeToken(token) {
+  if (!token) return null;
+  const entry = proxyTokens.get(token);
+  if (!entry) return null;
+  if (entry.exp < Date.now()) { proxyTokens.delete(token); return null; }
+  return entry;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of proxyTokens) if (v.exp < now) proxyTokens.delete(k);
+}, 10 * 60 * 1000).unref?.();
+
 // Fetch a remote stream using a browser-like UA and a Referer matching the
 // target host (many CDNs/embeds require a matching Referer or return 403).
 async function fetchProxied(url, extra = {}) {
@@ -40,17 +65,10 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
     let target = "";
     let referer = "";
     let cookies = [];
-    const bar = raw.indexOf("|");
-    if (bar >= 0) {
-      target = decodeURIComponent(raw.slice(0, bar));
-      const rest = raw.slice(bar + 1);
-      const parts = rest.split("|");
-      referer = parts[0] ? decodeURIComponent(parts[0]) : "";
-      const cookieRaw = parts[1] ? decodeURIComponent(parts[1]) : "";
-      if (cookieRaw) { try { cookies = JSON.parse(cookieRaw); } catch {} }
-    } else {
-      target = decodeURIComponent(raw);
-    }
+    const token = req.query.t ? decodeURIComponent(req.query.t) : "";
+    const entry = consumeToken(token);
+    if (entry) { referer = entry.referer || ""; cookies = entry.cookies || []; }
+    target = decodeURIComponent(raw);
     if (!/^https?:\/\//.test(target)) return res.status(400).end();
     const extra = { ...refererHeader(referer), ...cookieHeaderFor(target, cookies) };
     try {
@@ -60,7 +78,7 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
       if (ct.includes("mpegurl") || ct.includes("vnd.apple.mpegurl")) {
         const text = await upstream.text();
         const base = new URL(target).href;
-        const rewritten = rewriteM3u8(text, base, "/proxy/");
+        const rewritten = rewriteM3u8(text, base, "/proxy/", token);
         res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
         return res.send(rewritten);
       }
@@ -104,11 +122,12 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
     const resolved = resolver ? await resolver.resolve(urls) : null;
     if (!resolved) return res.status(502).send("unresolved");
     if (resolved.type === "mp4") return res.redirect(302, resolved.url);
+    const token = issueToken({ referer: resolved.referer, cookies: resolved.cookies });
     try {
       const hdr = { ...refererHeader(resolved.referer), ...cookieHeaderFor(resolved.url, resolved.cookies) };
       const upstream = await fetchProxied(resolved.url, hdr);
       const text = await upstream.text();
-      const rewritten = rewriteM3u8(text, resolved.url, "/proxy/", resolved.referer, resolved.cookies);
+      const rewritten = rewriteM3u8(text, resolved.url, "/proxy/", token);
       res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
       return res.send(rewritten);
     } catch { return res.status(502).send("movie_error"); }
@@ -123,11 +142,12 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
     const resolved = resolver ? await resolver.resolve(urls) : null;
     if (!resolved) return res.status(502).send("unresolved");
     if (resolved.type === "mp4") return res.redirect(302, resolved.url);
+    const token = issueToken({ referer: resolved.referer, cookies: resolved.cookies });
     try {
       const hdr = { ...refererHeader(resolved.referer), ...cookieHeaderFor(resolved.url, resolved.cookies) };
       const upstream = await fetchProxied(resolved.url, hdr);
       const text = await upstream.text();
-      const rewritten = rewriteM3u8(text, resolved.url, "/proxy/", resolved.referer, resolved.cookies);
+      const rewritten = rewriteM3u8(text, resolved.url, "/proxy/", token);
       res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
       return res.send(rewritten);
     } catch { return res.status(502).send("series_error"); }

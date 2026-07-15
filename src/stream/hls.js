@@ -4,41 +4,37 @@ export function resolveUrl(maybeRelative, base) {
   try { return new URL(maybeRelative, base).href; } catch { return maybeRelative; }
 }
 
-// Build a proxied URL. referer/cookie are embedded in the PATH (after a "|"
-// separator) rather than as query params, so the target URL's own query
-// string (e.g. signed CDN tokens like x-signature) is never mutated.
-// `|` is safe as a separator because encodeURIComponent encodes it (%7C),
-// so it can never appear inside the encoded target/referer/cookie parts.
-function buildProxy(proxyBase, abs, referer, cookieStr) {
+// Proxied URLs carry a short server-side token (?t=...) instead of embedding
+// the referer/cookies in the path. This keeps URLs short and avoids characters
+// (like "|") that some IPTV players reject, while still forwarding the
+// session referer/cookies needed by protected CDNs.
+function buildProxy(proxyBase, abs, token) {
   const enc = encodeURIComponent(abs);
   let p = `${proxyBase}${enc}`;
-  if (referer || cookieStr) {
-    p += `|${referer ? encodeURIComponent(referer) : ""}|${cookieStr || ""}`;
-  }
+  if (token) p += `?t=${encodeURIComponent(token)}`;
   return p;
 }
 
-function rewriteUriAttr(line, baseUrl, proxyBase, referer, cookieStr) {
+function rewriteUriAttr(line, baseUrl, proxyBase, token) {
   return line.replace(/(URI=["'])([^"']+)(["'])/gi, (m, pre, uri, post) => {
     if (uri.startsWith("/proxy/")) return m; // already proxied
     const abs = resolveUrl(uri, baseUrl);
-    return `${pre}${buildProxy(proxyBase, abs, referer, cookieStr)}${post}`;
+    return `${pre}${buildProxy(proxyBase, abs, token)}${post}`;
   });
 }
 
-export function rewriteM3u8(manifest, baseUrl, proxyBase, referer = "", cookies = []) {
-  const cookieStr = cookies && cookies.length ? encodeURIComponent(JSON.stringify(cookies)) : "";
+export function rewriteM3u8(manifest, baseUrl, proxyBase, token = "") {
   return manifest
     .split(/\r?\n/)
     .map((line) => {
       const trimmed = line.trim();
       if (trimmed === "") return line;
       if (trimmed.startsWith("#")) {
-        if (/URI=/.test(trimmed)) return rewriteUriAttr(line, baseUrl, proxyBase, referer, cookieStr);
+        if (/URI=/.test(trimmed)) return rewriteUriAttr(line, baseUrl, proxyBase, token);
         return line;
       }
       const abs = resolveUrl(trimmed, baseUrl);
-      return buildProxy(proxyBase, abs, referer, cookieStr);
+      return buildProxy(proxyBase, abs, token);
     })
     .join("\n");
 }
