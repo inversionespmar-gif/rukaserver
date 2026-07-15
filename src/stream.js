@@ -36,14 +36,22 @@ function cookieHeaderFor(url, cookies) {
 
 export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
   app.get("/proxy/*", async (req, res) => {
-    const target = decodeURIComponent(req.params[0] || "");
-    if (!/^https?:\/\//.test(target)) return res.status(400).end();
-    const referer = req.query.ref ? decodeURIComponent(req.query.ref) : "";
+    const raw = req.params[0] || "";
+    let target = "";
+    let referer = "";
     let cookies = [];
-    try {
-      const raw = req.query.cookie ? decodeURIComponent(req.query.cookie) : "";
-      if (raw) cookies = JSON.parse(raw);
-    } catch {}
+    const bar = raw.indexOf("|");
+    if (bar >= 0) {
+      target = decodeURIComponent(raw.slice(0, bar));
+      const rest = raw.slice(bar + 1);
+      const parts = rest.split("|");
+      referer = parts[0] ? decodeURIComponent(parts[0]) : "";
+      const cookieRaw = parts[1] ? decodeURIComponent(parts[1]) : "";
+      if (cookieRaw) { try { cookies = JSON.parse(cookieRaw); } catch {} }
+    } else {
+      target = decodeURIComponent(raw);
+    }
+    if (!/^https?:\/\//.test(target)) return res.status(400).end();
     const extra = { ...refererHeader(referer), ...cookieHeaderFor(target, cookies) };
     try {
       const upstream = await fetchProxied(target, extra);
