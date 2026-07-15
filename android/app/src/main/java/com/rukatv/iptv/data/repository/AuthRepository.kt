@@ -4,6 +4,8 @@ import com.rukatv.iptv.data.local.Credentials
 import com.rukatv.iptv.data.local.CredentialsStore
 import com.rukatv.iptv.data.remote.UrlBuilder
 import com.rukatv.iptv.data.remote.XtreamApi
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
@@ -31,9 +33,10 @@ class AuthRepository(
     companion object {
         fun buildApi(host: String): XtreamApi {
             val base = UrlBuilder.apiBase(host).removeSuffix("player_api.php")
+            val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
             return Retrofit.Builder()
                 .baseUrl(if (base.endsWith("/")) base else "$base/")
-                .addConverterFactory(MoshiConverterFactory.create())
+                .addConverterFactory(MoshiConverterFactory.create(moshi))
                 .build()
                 .create(XtreamApi::class.java)
         }
