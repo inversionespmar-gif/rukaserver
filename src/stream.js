@@ -1,7 +1,23 @@
 import { rewriteM3u8 } from "./stream/hls.js";
-import { parseJsonArray } from "./repositories/catalog.js";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
+// A movie/series stream_url (or series player_urls) may be stored either as a
+// JSON array of embed URLs or as a single URL string. Normalise both into a
+// list so the resolver receives the URLs instead of an empty array (which made
+// resolver.resolve() return null and the player show nothing).
+function asUrlList(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.filter(Boolean);
+  if (typeof v === "string") {
+    try {
+      const a = JSON.parse(v);
+      if (Array.isArray(a)) return a.filter(Boolean);
+    } catch {}
+    return [v];
+  }
+  return [];
+}
 
 // Short-lived tokens mapping to the referer/cookies captured at resolve time.
 // Embedded as ?t=<token> in proxied URLs so we don't bloat the URL with a
@@ -112,16 +128,19 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
     } catch { return res.status(502).send("live_error"); }
   });
 
-  app.get("/movie/:username/:password/:id.mp4", async (req, res) => {
+  async function handleMovie(req, res) {
     const user = await requireAuth(req, res);
     if (!user) return;
     const movies = await catalog.getVodStreams();
     const movie = movies.find((m) => String(m.stream_id) === String(req.params.id));
     if (!movie) return res.status(404).end();
-    const urls = parseJsonArray(movie.stream_url);
+    const urls = asUrlList(movie.stream_url);
     const resolved = resolver ? await resolver.resolve(urls) : null;
     if (!resolved) return res.status(502).send("unresolved");
-    if (resolved.type === "mp4") return res.redirect(302, resolved.url);
+    if (resolved.type === "mp4") {
+      const t = issueToken({ referer: resolved.referer, cookies: resolved.cookies });
+      return res.redirect(307, "/proxy/" + encodeURIComponent(resolved.url) + "?t=" + encodeURIComponent(t));
+    }
     const token = issueToken({ referer: resolved.referer, cookies: resolved.cookies });
     try {
       const hdr = { ...refererHeader(resolved.referer), ...cookieHeaderFor(resolved.url, resolved.cookies) };
@@ -131,17 +150,22 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
       res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
       return res.send(rewritten);
     } catch { return res.status(502).send("movie_error"); }
-  });
+  }
+  app.get("/movie/:username/:password/:id.mp4", handleMovie);
+  app.get("/movie/:username/:password/:id.m3u8", handleMovie);
 
   app.get("/series/:username/:password/:id.m3u8", async (req, res) => {
     const user = await requireAuth(req, res);
     if (!user) return;
     const playerUrls = await catalog.getEpisodePlayerUrls(req.params.id);
     if (!playerUrls) return res.status(404).end();
-    const urls = parseJsonArray(playerUrls);
+    const urls = asUrlList(playerUrls);
     const resolved = resolver ? await resolver.resolve(urls) : null;
     if (!resolved) return res.status(502).send("unresolved");
-    if (resolved.type === "mp4") return res.redirect(302, resolved.url);
+    if (resolved.type === "mp4") {
+      const t = issueToken({ referer: resolved.referer, cookies: resolved.cookies });
+      return res.redirect(307, "/proxy/" + encodeURIComponent(resolved.url) + "?t=" + encodeURIComponent(t));
+    }
     const token = issueToken({ referer: resolved.referer, cookies: resolved.cookies });
     try {
       const hdr = { ...refererHeader(resolved.referer), ...cookieHeaderFor(resolved.url, resolved.cookies) };

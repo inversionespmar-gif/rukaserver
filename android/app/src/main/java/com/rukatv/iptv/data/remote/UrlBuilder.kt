@@ -18,7 +18,7 @@ object UrlBuilder {
 
     fun movieStream(base: String, user: String, pass: String, id: Long): String {
         val b = normalizeScheme(base).trim().trimEnd('/')
-        return "$b/movie/${enc(user)}/${enc(pass)}/$id.mp4"
+        return "$b/movie/${enc(user)}/${enc(pass)}/$id.m3u8"
     }
 
     fun seriesStream(base: String, user: String, pass: String, episodeId: Long): String {
