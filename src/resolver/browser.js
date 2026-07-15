@@ -124,9 +124,10 @@ export async function resolveWithBrowser(embedUrl, { timeoutMs = 30000, waitMs =
           return { url: c.url, type: c.type, referer: c.referer || "", cookies };
         }
       }
-      // Nothing verified (host may need a session cookie); return best effort.
-      const first = ordered[0];
-      return { url: first.url, type: first.type, referer: first.referer || "", cookies };
+      // Nothing verified: return null so the outer resolver loop falls
+      // through to the next embed in the list (e.g. hlswish after a
+      // blocked vimeos source) instead of serving an unplayable URL.
+      return null;
     } catch (e) {
       console.error("[resolver:browser] resolve failed:", e && e.message);
       return null;
