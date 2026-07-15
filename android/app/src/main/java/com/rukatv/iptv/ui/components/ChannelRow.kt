@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focus.onFocusChanged
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Row
@@ -31,6 +32,7 @@ fun ChannelRow(
     name: String,
     logo: String,
     onClick: () -> Unit,
+    onFocus: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -42,6 +44,7 @@ fun ChannelRow(
             .background(if (focused) Accent else Surface)
             .border(if (focused) 2.dp else 0.dp, Accent, RoundedCornerShape(10.dp))
             .focusable(interactionSource = interaction)
+            .onFocusChanged { if (it.isFocused) onFocus() }
             .clickable(interactionSource = interaction, indication = null) { onClick() }
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically

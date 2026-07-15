@@ -36,9 +36,9 @@ fun HomeScreen(
             onSelect = { key -> current = Screen.valueOf(key.uppercase()) }
         )
         when (current) {
-            Screen.LIVE -> LiveTvScreen(catalog, onPlay)
+            Screen.LIVE -> LiveTvScreen(catalog, favorites, onPlay)
             Screen.MOVIES -> MoviesScreen(catalog, favorites, onPlay)
-            Screen.SERIES -> SeriesScreen(catalog, onPlay)
+            Screen.SERIES -> SeriesScreen(catalog, favorites, onPlay)
             Screen.SEARCH -> SearchScreen(catalog, favorites, onPlay)
             Screen.FAVORITES -> FavoritesScreen(catalog, favorites, onPlay)
         }
