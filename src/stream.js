@@ -163,6 +163,16 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
     return null;
   }
 
+  app.get("/series-debug/:id", async (req, res) => {
+    try {
+      const raw = await catalog.getEpisodePlayerUrls(req.params.id);
+      const safe = await getEpisodePlayerUrlsSafe(catalog, req.params.id);
+      return res.json({ raw, safe, rawType: typeof raw, safeType: typeof safe });
+    } catch (e) {
+      return res.status(500).json({ error: e && e.message });
+    }
+  });
+
   app.get("/series/:username/:password/:id.m3u8", async (req, res) => {
     const user = await requireAuth(req, res);
     if (!user) return;
