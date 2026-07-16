@@ -5,7 +5,7 @@ export function detectHost(url) {
 }
 
 export function createResolver({ fetchImpl = fetch, cache, hosts = {}, browserResolve = null } = {}) {
-  async function resolveOne(url) {
+  async function resolveOne(url, opts = {}) {
     if (cache) {
       const cached = cache.get(url);
       if (cached) return cached;
@@ -20,11 +20,13 @@ export function createResolver({ fetchImpl = fetch, cache, hosts = {}, browserRe
     } catch {
       result = null;
     }
-    if (!result || !result.url) {
+    if (!result || !result.url || result.needsBrowserCookie) {
       if (browserResolve) {
-        try { result = await browserResolve(url, opts); } catch (e) {
+        try {
+          const browserResult = await browserResolve(url, opts);
+          if (browserResult && browserResult.url) result = browserResult;
+        } catch (e) {
           console.error("[resolver] browserResolve failed:", e && e.message);
-          result = null;
         }
       }
     }
