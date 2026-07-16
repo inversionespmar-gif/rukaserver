@@ -156,22 +156,12 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
 
   async function getEpisodePlayerUrlsSafe(catalog, id) {
     try {
-      const row = await catalog.getEpisodePlayerUrls(id);
-      if (row && Array.isArray(row.player_urls) && row.player_urls.length) return row.player_urls;
-      if (row && typeof row.player_urls === "string" && row.player_urls.trim()) return row.player_urls;
+      const playerUrls = await catalog.getEpisodePlayerUrls(id);
+      if (Array.isArray(playerUrls) && playerUrls.length) return playerUrls;
+      if (typeof playerUrls === "string" && playerUrls.trim()) return playerUrls;
     } catch {}
     return null;
   }
-
-  app.get("/series-debug/:id", async (req, res) => {
-    try {
-      const raw = await catalog.getEpisodePlayerUrls(req.params.id);
-      const safe = await getEpisodePlayerUrlsSafe(catalog, req.params.id);
-      return res.json({ raw, safe, rawType: typeof raw, safeType: typeof safe });
-    } catch (e) {
-      return res.status(500).json({ error: e && e.message });
-    }
-  });
 
   app.get("/series/:username/:password/:id.m3u8", async (req, res) => {
     const user = await requireAuth(req, res);
