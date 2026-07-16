@@ -4,18 +4,14 @@ const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 export async function resolveVimeos(url, { fetchImpl = fetch } = {}) {
   try {
-    console.log("[resolveVimeos] fetching", url);
     const res = await fetchImpl(url, {
       headers: { "User-Agent": UA, Referer: url, Origin: new URL(url).origin },
       redirect: "follow",
     });
-    console.log("[resolveVimeos] status", res.status, "ok", res.ok);
     if (!res.ok) return null;
     const html = await res.text();
-    console.log("[resolveVimeos] html len", html.length);
 
     const { m3u8, mp4 } = extractStreamUrls(html, url);
-    console.log("[resolveVimeos] m3u8", m3u8.length, "mp4", mp4.length);
     if (m3u8.length || mp4.length) {
       const chosen = m3u8[0] || mp4[0];
       return {
