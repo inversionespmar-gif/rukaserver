@@ -163,23 +163,13 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
     return null;
   }
 
-  app.get("/series-debug/:id", async (req, res) => {
-    try {
-      const safe = await getEpisodePlayerUrlsSafe(catalog, req.params.id);
-      const resolved = resolver ? await resolver.resolve(asUrlList(safe), { timeoutMs: 25000, waitMs: 6000 }) : null;
-      return res.json({ safe, safeType: typeof safe, resolved: resolved ? { type: resolved.type, url: resolved.url.slice(0,80) } : null });
-    } catch (e) {
-      return res.status(500).json({ error: e && e.message });
-    }
-  });
-
   app.get("/series/:username/:password/:id.m3u8", async (req, res) => {
     const user = await requireAuth(req, res);
     if (!user) return;
     const playerUrls = await getEpisodePlayerUrlsSafe(catalog, req.params.id);
     if (!playerUrls) return res.status(404).end();
     const urls = asUrlList(playerUrls);
-    const resolved = resolver ? await resolver.resolve(urls, { timeoutMs: 25000, waitMs: 6000 }) : null;
+    const resolved = resolver ? await resolver.resolve(urls, { timeoutMs: 30000, waitMs: 9000 }) : null;
     if (!resolved) return res.status(502).send("unresolved");
     if (resolved.type === "mp4") {
       const t = issueToken({ referer: resolved.referer, cookies: resolved.cookies });
@@ -193,6 +183,6 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
       const rewritten = rewriteM3u8(text, resolved.url, "/proxy/", token);
       res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
       return res.send(rewritten);
-    } catch { return res.status(502).send("series_error"); }
+    } catch { return res.status(502).send("movie_error"); }
   });
 }

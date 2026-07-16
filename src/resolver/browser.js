@@ -67,78 +67,96 @@ function cookieHeaderFor(url, cookies) {
   return parts.join("; ");
 }
 
-export async function resolveWithBrowser(embedUrl, { timeoutMs = 25000, waitMs = 6000 } = {}) {
+async function resolveInBrowser(browser, embedUrl, { timeoutMs, waitMs }) {
+  let context;
+  const candidates = [];
+  const seen = new Set();
+  const push = (url, referer, type) => {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    candidates.push({ url, referer: referer || "", type });
+  };
+  try {
+    context = await browser.newContext({ userAgent: UA });
+    const page = await context.newPage();
+    const onRequest = (req) => {
+      const u = req.url();
+      if (MEDIA_RE.test(u)) push(u, req.headers()["referer"] || "", /\.m3u8/i.test(u) ? "m3u8" : "mp4");
+    };
+    const onResponse = (res) => {
+      const u = res.url();
+      const ct = res.headers()["content-type"] || "";
+      const isMedia = MEDIA_RE.test(u) || /mpegurl|video\/mp4|video\/mp2t|application\/vnd\.apple\.mpegurl/i.test(ct);
+      if (isMedia) push(u, res.request()?.headers()?.["referer"] || "", /\.m3u8|mpegurl/i.test(u + ct) ? "m3u8" : "mp4");
+    };
+    page.on("request", onRequest);
+    page.on("response", onResponse);
+    try {
+      await page.goto(embedUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+    } catch {
+      // navigation may "fail" while the player keeps firing media requests
+    }
+    await new Promise((r) => setTimeout(r, waitMs));
+    try {
+      const src = await page.$eval("video", (v) => v.currentSrc || v.src || "").catch(() => "");
+      if (src && MEDIA_RE.test(src)) push(src, embedUrl, /\.m3u8/i.test(src) ? "m3u8" : "mp4");
+    } catch {}
+
+    if (!candidates.length) return null;
+
+    // Prefer m3u8, then mp4; verify each with a real fetch.
+    const ordered = [
+      ...candidates.filter((c) => c.type === "m3u8"),
+      ...candidates.filter((c) => c.type === "mp4"),
+      ...candidates.filter((c) => c.type !== "m3u8" && c.type !== "mp4"),
+    ];
+    const cookies = await context.cookies().catch(() => []);
+    for (const c of ordered) {
+      if (await verifyMedia(c.url, c.referer, cookies)) {
+        return { url: c.url, type: c.type, referer: c.referer || "", cookies };
+      }
+    }
+    // Nothing verified: return null so the outer resolver loop falls
+    // through to the next embed in the list (e.g. hlswish after a
+    // blocked vimeos source) instead of serving an unplayable URL.
+    return null;
+  } finally {
+    if (context) await context.close().catch(() => {});
+  }
+}
+
+export async function resolveWithBrowser(embedUrl, { timeoutMs = 25000, waitMs = 9000 } = {}) {
   // Hard cap so a slow/unresponsive embed can't make the player wait forever.
   const hardCap = Math.min(timeoutMs, 25000) + waitMs + 8000;
   const run = Promise.race([
     busy.then(async () => {
+    let lastErr;
     let browser;
-    try {
-      browser = await launchBrowser();
-    } catch (e) {
-      console.error("[resolver:browser] launch failed:", e && e.message);
-      return null;
-    }
-    let context;
-    const candidates = [];
-    try {
-      context = await browser.newContext({ userAgent: UA });
-      const page = await context.newPage();
-      const onRequest = (req) => {
-        const u = req.url();
-        if (MEDIA_RE.test(u)) {
-          candidates.push({ url: u, referer: req.headers()["referer"] || "", type: /\.m3u8/i.test(u) ? "m3u8" : "mp4" });
-        }
-      };
-      const onResponse = (res) => {
-        const u = res.url();
-        const ct = res.headers()["content-type"] || "";
-        if (MEDIA_RE.test(u) || /mpegurl/.test(ct) || /video\/mp4/.test(ct)) {
-          const ref = res.request()?.headers()?.["referer"] || "";
-          candidates.push({ url: u, referer: ref, type: /\.m3u8/i.test(u) ? "m3u8" : "mp4" });
-        }
-      };
-      page.on("request", onRequest);
-      page.on("response", onResponse);
+    // Retry the launch a couple of times: on small/constrained hosts
+    // (e.g. Render free) Chromium occasionally fails to start and a
+    // second attempt usually succeeds.
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        await page.goto(embedUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-      } catch {
-        // navigation may "fail" while the player keeps firing media requests
+        browser = await launchBrowser();
+      } catch (e) {
+        lastErr = e;
+        await new Promise((r) => setTimeout(r, 500));
+        continue;
       }
-      await new Promise((r) => setTimeout(r, waitMs));
       try {
-        const src = await page.$eval("video", (v) => v.currentSrc || v.src || "").catch(() => "");
-        if (src && MEDIA_RE.test(src)) {
-          candidates.push({ url: src, referer: embedUrl, type: /\.m3u8/i.test(src) ? "m3u8" : "mp4" });
-        }
-      } catch {}
-
-      if (!candidates.length) return null;
-
-      // Prefer m3u8, then mp4; verify each with a real fetch.
-      const ordered = [
-        ...candidates.filter((c) => c.type === "m3u8"),
-        ...candidates.filter((c) => c.type === "mp4"),
-        ...candidates.filter((c) => c.type !== "m3u8" && c.type !== "mp4"),
-      ];
-      const cookies = await context.cookies().catch(() => []);
-      for (const c of ordered) {
-        if (await verifyMedia(c.url, c.referer, cookies)) {
-          return { url: c.url, type: c.type, referer: c.referer || "", cookies };
-        }
+        const result = await resolveInBrowser(browser, embedUrl, { timeoutMs, waitMs });
+        return result;
+      } catch (e) {
+        lastErr = e;
+      } finally {
+        if (browser) await browser.close().catch(() => {});
+        browser = null;
       }
-      // Nothing verified: return null so the outer resolver loop falls
-      // through to the next embed in the list (e.g. hlswish after a
-      // blocked vimeos source) instead of serving an unplayable URL.
-      return null;
-    } catch (e) {
-      console.error("[resolver:browser] resolve failed:", e && e.message);
-      return null;
-    } finally {
-      if (context) await context.close().catch(() => {});
-      if (browser) await browser.close().catch(() => {});
     }
+    console.error("[resolver:browser] all attempts failed:", lastErr && lastErr.message);
+    return null;
   }),
+
     new Promise((resolve) => setTimeout(() => resolve(null), hardCap)),
   ]);
   busy = run.catch(() => null);
