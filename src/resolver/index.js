@@ -22,7 +22,7 @@ export function createResolver({ fetchImpl = fetch, cache, hosts = {}, browserRe
     }
     if (!result || !result.url) {
       if (browserResolve) {
-        try { result = await browserResolve(url); } catch (e) {
+        try { result = await browserResolve(url, opts); } catch (e) {
           console.error("[resolver] browserResolve failed:", e && e.message);
           result = null;
         }
@@ -36,12 +36,12 @@ export function createResolver({ fetchImpl = fetch, cache, hosts = {}, browserRe
   }
 
   return {
-    async resolve(embedUrls) {
+    async resolve(embedUrls, opts = {}) {
       const list = Array.isArray(embedUrls)
         ? embedUrls
         : (() => { try { return JSON.parse(embedUrls || "[]"); } catch { return []; } })();
       for (const u of list) {
-        const r = await resolveOne(u);
+        const r = await resolveOne(u, opts);
         if (r) return r;
       }
       return null;

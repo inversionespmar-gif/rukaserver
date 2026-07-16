@@ -135,7 +135,7 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
     const movie = movies.find((m) => String(m.stream_id) === String(req.params.id));
     if (!movie) return res.status(404).end();
     const urls = asUrlList(movie.stream_url);
-    const resolved = resolver ? await resolver.resolve(urls) : null;
+    const resolved = resolver ? await resolver.resolve(urls, { timeoutMs: 25000, waitMs: 6000 }) : null;
     if (!resolved) return res.status(502).send("unresolved");
     if (resolved.type === "mp4") {
       const t = issueToken({ referer: resolved.referer, cookies: resolved.cookies });
@@ -154,13 +154,22 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
   app.get("/movie/:username/:password/:id.mp4", handleMovie);
   app.get("/movie/:username/:password/:id.m3u8", handleMovie);
 
+  async function getEpisodePlayerUrlsSafe(catalog, id) {
+    try {
+      const row = await catalog.getEpisodePlayerUrls(id);
+      if (row && Array.isArray(row.player_urls) && row.player_urls.length) return row.player_urls;
+      if (row && typeof row.player_urls === "string" && row.player_urls.trim()) return row.player_urls;
+    } catch {}
+    return null;
+  }
+
   app.get("/series/:username/:password/:id.m3u8", async (req, res) => {
     const user = await requireAuth(req, res);
     if (!user) return;
-    const playerUrls = await catalog.getEpisodePlayerUrls(req.params.id);
+    const playerUrls = await getEpisodePlayerUrlsSafe(catalog, req.params.id);
     if (!playerUrls) return res.status(404).end();
     const urls = asUrlList(playerUrls);
-    const resolved = resolver ? await resolver.resolve(urls) : null;
+    const resolved = resolver ? await resolver.resolve(urls, { timeoutMs: 25000, waitMs: 6000 }) : null;
     if (!resolved) return res.status(502).send("unresolved");
     if (resolved.type === "mp4") {
       const t = issueToken({ referer: resolved.referer, cookies: resolved.cookies });

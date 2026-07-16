@@ -67,8 +67,11 @@ function cookieHeaderFor(url, cookies) {
   return parts.join("; ");
 }
 
-export async function resolveWithBrowser(embedUrl, { timeoutMs = 30000, waitMs = 9000 } = {}) {
-  const run = busy.then(async () => {
+export async function resolveWithBrowser(embedUrl, { timeoutMs = 25000, waitMs = 6000 } = {}) {
+  // Hard cap so a slow/unresponsive embed can't make the player wait forever.
+  const hardCap = Math.min(timeoutMs, 25000) + waitMs + 8000;
+  const run = Promise.race([
+    busy.then(async () => {
     let browser;
     try {
       browser = await launchBrowser();
@@ -135,7 +138,9 @@ export async function resolveWithBrowser(embedUrl, { timeoutMs = 30000, waitMs =
       if (context) await context.close().catch(() => {});
       if (browser) await browser.close().catch(() => {});
     }
-  });
+  }),
+    new Promise((resolve) => setTimeout(() => resolve(null), hardCap)),
+  ]);
   busy = run.catch(() => null);
   return run;
 }
