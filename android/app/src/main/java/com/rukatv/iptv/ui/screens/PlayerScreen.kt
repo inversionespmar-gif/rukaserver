@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,8 +44,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import com.rukatv.iptv.PlayItem
+import com.rukatv.iptv.data.local.PlaybackProgressStore
 import com.rukatv.iptv.player.TvPlayer
 import com.rukatv.iptv.ui.theme.Accent
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 // Seconds to skip past the intro when playing a series episode.
 const val SKIP_INTRO_SECONDS = 90
@@ -54,6 +58,7 @@ fun PlayerScreen(
     queue: List<PlayItem>,
     startIndex: Int = 0,
     isSeries: Boolean = false,
+    progressStore: PlaybackProgressStore,
     onExit: () -> Unit
 ) {
     val context = LocalContext.current
@@ -70,6 +75,10 @@ fun PlayerScreen(
     val currentIsSeries by rememberUpdatedState(isSeries)
 
     var controlsVisible by remember { mutableStateOf(true) }
+
+    var resumeOverlayVisible by remember { mutableStateOf(false) }
+    var resumePosition by remember { mutableStateOf(0L) }
+    var resumeTimestampText by remember { mutableStateOf("") }
 
     fun nextEpisode() {
         if (index < queue.lastIndex) {
@@ -91,6 +100,10 @@ fun PlayerScreen(
             ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         onDispose {
+            runBlocking {
+                val url = queue.getOrNull(index)?.url ?: return@runBlocking
+                progressStore.saveProgress(url, player.player.currentPosition)
+            }
             player.release()
             activity?.requestedOrientation = prevOrientation
         }
@@ -102,6 +115,19 @@ fun PlayerScreen(
     LaunchedEffect(index) {
         showNextPrompt = false
         countdown = 10
+
+        // Check for saved progress
+        val playUrl = queue.getOrNull(index)?.url
+        if (playUrl != null) {
+            val savedPos = progressStore.getProgress(playUrl).first()
+            if (savedPos != null && savedPos > 0) {
+                resumePosition = savedPos
+                val totalSec = savedPos / 1000
+                resumeTimestampText = "%d:%02d".format(totalSec / 60, totalSec % 60)
+                resumeOverlayVisible = true
+            }
+        }
+
         if (queue.isNotEmpty()) {
             player.prepare(queue[index.coerceIn(0, queue.lastIndex)].url)
         }
@@ -117,12 +143,26 @@ fun PlayerScreen(
     LaunchedEffect(Unit) {
         player.setListener(object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
-                if (state != Player.STATE_ENDED) return
-                val q = currentQueue
-                if (currentIsSeries && currentIndex < q.lastIndex) {
-                    showNextPrompt = true
-                } else {
-                    onExit()
+                if (state == Player.STATE_ENDED) {
+                    val q = currentQueue
+                    val idx = currentIndex
+                    if (idx <= q.lastIndex) {
+                        scope.launch { progressStore.removeProgress(q[idx].url) }
+                    }
+                    if (currentIsSeries && idx < q.lastIndex) {
+                        showNextPrompt = true
+                    } else {
+                        onExit()
+                    }
+                }
+            }
+
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                if (!playWhenReady) {
+                    val url = currentQueue.getOrNull(currentIndex)?.url ?: return
+                    scope.launch {
+                        progressStore.saveProgress(url, player.player.currentPosition)
+                    }
                 }
             }
         })
@@ -140,6 +180,25 @@ fun PlayerScreen(
                 index += 1
                 showNextPrompt = false
             }
+        }
+    }
+
+    // Save progress every 5 seconds while playing
+    LaunchedEffect(index) {
+        while (true) {
+            delay(5000)
+            val url = queue.getOrNull(index)?.url ?: continue
+            if (player.player.isPlaying) {
+                progressStore.saveProgress(url, player.player.currentPosition)
+            }
+        }
+    }
+
+    // Auto-dismiss resume overlay after 5s
+    LaunchedEffect(resumeOverlayVisible) {
+        if (resumeOverlayVisible) {
+            delay(5000)
+            resumeOverlayVisible = false
         }
     }
 
@@ -272,6 +331,78 @@ fun PlayerScreen(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
+            }
+        }
+
+        // Resume playback overlay
+        AnimatedVisibility(
+            visible = resumeOverlayVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xE6121212))
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "Continuar viendo?",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        resumeTimestampText,
+                        color = Color(0xFF9CA3AF),
+                        fontSize = 14.sp
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Accent)
+                                .clickable {
+                                    player.player.seekTo(resumePosition)
+                                    resumeOverlayVisible = false
+                                }
+                                .padding(horizontal = 24.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Continuar",
+                                color = Color(0xFF06231F),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .border(1.dp, Color(0xFF444444), RoundedCornerShape(6.dp))
+                                .clickable {
+                                    scope.launch {
+                                        val url = queue.getOrNull(index)?.url ?: return@launch
+                                        progressStore.removeProgress(url)
+                                    }
+                                    resumeOverlayVisible = false
+                                }
+                                .padding(horizontal = 24.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Empezar de nuevo",
+                                color = Color(0xFFCCCCCC),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
             }
         }
 
