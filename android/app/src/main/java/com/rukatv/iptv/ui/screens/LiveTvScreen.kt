@@ -54,8 +54,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rukatv.iptv.data.repository.CatalogRepository
 import com.rukatv.iptv.data.repository.FavoritesRepository
-import com.rukatv.iptv.player.TvPlayer
-import com.rukatv.iptv.player.StreamKind
+import com.rukatv.iptv.player.VlcPlayer
 import com.rukatv.iptv.ui.components.ChannelRow
 import com.rukatv.iptv.ui.components.Chip
 import com.rukatv.iptv.ui.components.ErrorState
@@ -66,17 +65,6 @@ import com.rukatv.iptv.ui.theme.Surface
 import com.rukatv.iptv.ui.viewmodel.LiveTvViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-// Deduce el tipo de stream a partir de la URL original que guarda el backend.
-// Las URLs tipo /play/xxxx (sin extensión de contenedor) o .ts son MPEG-TS en
-// vivo; las .m3u8/.m3u son HLS. El backend hace proxy de ambos por la misma
-// ruta /live/.../{id}.m3u8, así que la app debe forzar el extractor correcto.
-fun streamKindOf(streamUrl: String): StreamKind {
-    val lower = streamUrl.lowercase()
-    if (lower.endsWith(".m3u8") || lower.endsWith(".m3u")) return StreamKind.HLS
-    if (lower.endsWith(".ts") || lower.contains("/play/")) return StreamKind.TS
-    return StreamKind.PROGRESSIVE
-}
 
 @Composable
 fun LiveTvScreen(
@@ -108,16 +96,13 @@ fun LiveTvScreen(
     val favSet by favorites.favorites.collectAsStateWithLifecycle(emptySet())
     val scope = rememberCoroutineScope()
 
-    val player = remember { TvPlayer(context) }
+    val player = remember { VlcPlayer(context) }
     LaunchedEffect(Unit) {
         if (filtered.isNotEmpty()) {
-            val ch = filtered[0]
-            player.prepare(catalog.liveUrl(ch.streamId), streamKindOf(ch.streamUrl))
+            player.play(filtered[0].streamUrl)
         }
     }
-    DisposableEffect(Unit) { onDispose { player.release() } }
-
-    val playerView = remember { player.playerView(context) }
+    DisposableEffect(Unit) { onDispose { player.stop(); player.release() } }
     val listState = rememberLazyListState()
     val overlayListState = rememberLazyListState()
     val overlayFocusRequester = remember { FocusRequester() }
@@ -125,8 +110,8 @@ fun LiveTvScreen(
     fun playIndex(i: Int) {
         selectedIndex = i
         if (filtered.isNotEmpty()) {
-            val ch = filtered[i]
-            player.prepare(catalog.liveUrl(ch.streamId), streamKindOf(ch.streamUrl))
+            player.stop()
+            player.play(filtered[i].streamUrl)
         }
     }
 
@@ -181,10 +166,10 @@ Key.Nine -> { numberBuffer += "9"; true }
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
-                        (playerView.parent as? ViewGroup)?.removeView(playerView)
+                        (player.view.parent as? ViewGroup)?.removeView(player.view)
                         android.widget.FrameLayout(ctx).also { fl ->
                             fl.addView(
-                                playerView,
+                                player.view,
                                 ViewGroup.LayoutParams(
                                     ViewGroup.LayoutParams.MATCH_PARENT,
                                     ViewGroup.LayoutParams.MATCH_PARENT
@@ -309,10 +294,10 @@ Key.Nine -> { numberBuffer += "9"; true }
                         AndroidView(
                             modifier = Modifier.fillMaxSize(),
                             factory = { ctx ->
-                                (playerView.parent as? ViewGroup)?.removeView(playerView)
+                                (player.view.parent as? ViewGroup)?.removeView(player.view)
                                 android.widget.FrameLayout(ctx).also { fl ->
                                     fl.addView(
-                                        playerView,
+                                        player.view,
                                         ViewGroup.LayoutParams(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
