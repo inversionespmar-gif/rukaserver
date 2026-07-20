@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -116,6 +119,8 @@ fun LiveTvScreen(
 
     val playerView = remember { player.playerView(context) }
     val listState = rememberLazyListState()
+    val overlayListState = rememberLazyListState()
+    val overlayFocusRequester = remember { FocusRequester() }
 
     fun playIndex(i: Int) {
         selectedIndex = i
@@ -141,6 +146,13 @@ fun LiveTvScreen(
 
     BackHandler(enabled = fullscreen) {
         if (overlay) overlay = false else fullscreen = false
+    }
+
+    LaunchedEffect(overlay) {
+        if (overlay) {
+            overlayListState.scrollToItem(selectedIndex.coerceAtLeast(0))
+            overlayFocusRequester.requestFocus()
+        }
     }
 
     Box(Modifier.fillMaxSize().onKeyEvent { ev ->
@@ -181,18 +193,26 @@ fun LiveTvScreen(
                             .fillMaxSize()
                             .background(Color(0xCC000000))
                             .clickable { overlay = false }
+                    )
+                    LazyColumn(
+                        state = overlayListState,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .width(400.dp)
                             .padding(16.dp)
+                            .focusRequester(overlayFocusRequester)
+                            .focusable(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            itemsIndexed(filtered) { i, ch ->
-                                ChannelRow(
-                                    index = i,
-                                    name = ch.name,
-                                    logo = ch.streamIcon,
-                                    onFocus = { playIndex(i) },
-                                    onClick = { playIndex(i); overlay = false }
-                                )
-                            }
+                        itemsIndexed(filtered) { i, ch ->
+                            ChannelRow(
+                                index = i,
+                                name = ch.name,
+                                logo = ch.streamIcon,
+                                onFocus = { playIndex(i) },
+                                onClick = { playIndex(i); overlay = false }
+                            )
                         }
                     }
                 }
