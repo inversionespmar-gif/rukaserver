@@ -2,6 +2,7 @@ package com.rukatv.iptv.ui.screens
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import android.view.KeyEvent
 import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -142,16 +143,69 @@ fun PlayerScreen(
         }
     }
 
+    val controlsVisibleRef = rememberUpdatedState(controlsVisible)
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         // Full-screen video
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
                 android.widget.FrameLayout(ctx).also { fl ->
+                    val pv = player.playerView(ctx) { visible ->
+                        controlsVisible = visible
+                    }
+                    pv.setOnKeyListener { _, keyCode, event ->
+                        if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+                        val ctrlVisible = controlsVisibleRef.value
+                        when (keyCode) {
+                            KeyEvent.KEYCODE_DPAD_CENTER -> {
+                                if (!ctrlVisible) {
+                                    player.player.playWhenReady = !player.player.playWhenReady
+                                    pv.showController()
+                                    true
+                                } else false
+                            }
+                            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                                if (!ctrlVisible) {
+                                    val newPos = (player.player.currentPosition - 10000).coerceAtLeast(0L)
+                                    player.player.seekTo(newPos)
+                                    pv.showController()
+                                    true
+                                } else false
+                            }
+                            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                if (!ctrlVisible) {
+                                    val newPos = player.player.currentPosition + 10000
+                                    player.player.seekTo(newPos)
+                                    pv.showController()
+                                    true
+                                } else false
+                            }
+                            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                            KeyEvent.KEYCODE_MEDIA_PLAY,
+                            KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                                player.player.playWhenReady = !player.player.playWhenReady
+                                pv.showController()
+                                true
+                            }
+                            KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                                nextEpisode()
+                                pv.showController()
+                                true
+                            }
+                            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                                prevEpisode()
+                                pv.showController()
+                                true
+                            }
+                            else -> {
+                                pv.showController()
+                                false
+                            }
+                        }
+                    }
                     fl.addView(
-                        player.playerView(ctx) { visible ->
-                            controlsVisible = visible
-                        },
+                        pv,
                         ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
