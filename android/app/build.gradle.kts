@@ -23,7 +23,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    kotlinOptions {
+        jvmTarget = "17"
+        freeCompilerArgs = freeCompilerArgs + listOf("-Xopt-in=androidx.media3.common.util.UnstableApi")
+    }
     buildFeatures { compose = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
 }
@@ -51,6 +54,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:$media3")
     implementation("androidx.media3:media3-ui:$media3")
     implementation("androidx.media3:media3-common:$media3")
+    implementation("androidx.media3:media3-exoplayer-ffmpeg:$media3")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 }
