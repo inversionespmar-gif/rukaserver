@@ -32,22 +32,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val credsStore = CredentialsStore(this)
         val favStore = FavoritesStore(this)
+        val progressStore = PlaybackProgressStore(this)
         val tv = isTvDevice(this)
 
         setContent {
             MaterialTheme(colorScheme = if (tv) tvColorScheme() else phoneColorScheme()) {
-                AppContent(credsStore, favStore, tv)
+                AppContent(credsStore, favStore, progressStore, tv)
             }
         }
     }
 }
 
 @Composable
-private fun AppContent(credsStore: CredentialsStore, favStore: FavoritesStore, isTv: Boolean) {
+private fun AppContent(credsStore: CredentialsStore, favStore: FavoritesStore, progressStore: PlaybackProgressStore, isTv: Boolean) {
     var playerQueue by remember { mutableStateOf<List<PlayItem>?>(null) }
     var playerStart by remember { mutableStateOf(0) }
     var playerIsSeries by remember { mutableStateOf(false) }
-    val progressStore = remember { PlaybackProgressStore(applicationContext) }
     val loginVm = remember {
         LoginViewModel(credsStore) { host -> AuthRepository.buildApi(host) }
     }
