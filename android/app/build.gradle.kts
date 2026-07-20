@@ -56,6 +56,7 @@ dependencies {
     implementation("androidx.media3:media3-ui:$media3")
     implementation("androidx.media3:media3-common:$media3")
     implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.3.1+1")
+    implementation("org.videolan.android:libvlc-all:3.6.5")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
