@@ -158,16 +158,16 @@ fun LiveTvScreen(
     Box(Modifier.fillMaxSize().onKeyEvent { ev ->
         if (ev.type == KeyEventType.KeyDown) {
             when (ev.key) {
-                Key.Zero, Key.Num0 -> { numberBuffer += "0"; true }
-                Key.One, Key.Num1 -> { numberBuffer += "1"; true }
-                Key.Two, Key.Num2 -> { numberBuffer += "2"; true }
-                Key.Three, Key.Num3 -> { numberBuffer += "3"; true }
-                Key.Four, Key.Num4 -> { numberBuffer += "4"; true }
-                Key.Five, Key.Num5 -> { numberBuffer += "5"; true }
-                Key.Six, Key.Num6 -> { numberBuffer += "6"; true }
-                Key.Seven, Key.Num7 -> { numberBuffer += "7"; true }
-                Key.Eight, Key.Num8 -> { numberBuffer += "8"; true }
-                Key.Nine, Key.Num9 -> { numberBuffer += "9"; true }
+Key.Zero -> { numberBuffer += "0"; true }
+Key.One -> { numberBuffer += "1"; true }
+Key.Two -> { numberBuffer += "2"; true }
+Key.Three -> { numberBuffer += "3"; true }
+Key.Four -> { numberBuffer += "4"; true }
+Key.Five -> { numberBuffer += "5"; true }
+Key.Six -> { numberBuffer += "6"; true }
+Key.Seven -> { numberBuffer += "7"; true }
+Key.Eight -> { numberBuffer += "8"; true }
+Key.Nine -> { numberBuffer += "9"; true }
                 Key.DirectionCenter, Key.Enter -> {
                     if (fullscreen) { overlay = !overlay; true } else false
                 }
