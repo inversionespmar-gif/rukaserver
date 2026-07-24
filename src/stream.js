@@ -11,8 +11,17 @@ function asUrlList(v) {
   if (Array.isArray(v)) return v.filter(Boolean);
   if (typeof v === "string") {
     try {
-      const a = JSON.parse(v);
-      if (Array.isArray(a)) return a.filter(Boolean);
+      let a = JSON.parse(v);
+      if (Array.isArray(a)) {
+        while (a.length === 1 && Array.isArray(a[0])) a = a[0];
+        if (a.length === 1 && typeof a[0] === "string") {
+          try {
+            const inner = JSON.parse(a[0]);
+            if (Array.isArray(inner)) return inner.filter(Boolean);
+          } catch {}
+        }
+        return a.filter(Boolean);
+      }
     } catch {}
     return [v];
   }
@@ -98,10 +107,14 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
         res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
         return res.send(rewritten);
       }
-      const cl = upstream.headers.get("content-length");
-      if (cl) res.setHeader("content-length", cl);
-      const buf = Buffer.from(await upstream.arrayBuffer());
-      return res.send(buf);
+      if (ct) res.setHeader("Content-Type", ct);
+      res.setHeader("Cache-Control", "no-cache");
+      if (upstream.body && typeof upstream.body.pipe === "function") {
+        upstream.body.pipe(res);
+      } else {
+        const buf = Buffer.from(await upstream.arrayBuffer());
+        return res.send(buf);
+      }
     } catch {
       return res.status(502).send("proxy_error");
     }
@@ -121,10 +134,29 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
     if (!channel || !channel.stream_url) return res.status(404).end();
     try {
       const upstream = await fetchProxied(channel.stream_url);
-      const text = await upstream.text();
-      const rewritten = rewriteM3u8(text, channel.stream_url, "/proxy/");
-      res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
-      return res.send(rewritten);
+      if (!upstream.ok) return res.status(upstream.status).send("live_upstream_error");
+      const ct = upstream.headers.get("content-type") || "";
+      // HLS manifests (.m3u8) need their internal URLs rewritten so the player
+      // fetches segments through our /proxy endpoint.
+      if (ct.includes("mpegurl") || ct.includes("vnd.apple.mpegurl") || channel.stream_url.endsWith(".m3u8")) {
+        const text = await upstream.text();
+        const base = new URL(channel.stream_url).href;
+        const rewritten = rewriteM3u8(text, base, "/proxy/");
+        res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+        return res.send(rewritten);
+      }
+      // MPEG-TS / raw streams (e.g. http://host/play/xxxx with no extension):
+      // stream the bytes through so ExoPlayer can demux them. Do NOT buffer the
+      // whole body (live TS never ends), just pipe it to the response.
+      if (ct) res.setHeader("Content-Type", ct);
+      res.setHeader("Cache-Control", "no-cache");
+      res.status(200);
+      if (upstream.body && typeof upstream.body.pipe === "function") {
+        upstream.body.pipe(res);
+      } else {
+        const buf = Buffer.from(await upstream.arrayBuffer());
+        return res.send(buf);
+      }
     } catch { return res.status(502).send("live_error"); }
   });
 

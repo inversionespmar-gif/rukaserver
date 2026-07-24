@@ -14,13 +14,17 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rukatv.iptv.data.local.CredentialsStore
 import com.rukatv.iptv.data.local.FavoritesStore
+import com.rukatv.iptv.data.local.PlaybackProgressStore
 import com.rukatv.iptv.data.repository.AuthRepository
 import com.rukatv.iptv.data.repository.CatalogRepository
 import com.rukatv.iptv.data.repository.FavoritesRepository
+import com.rukatv.iptv.PlayItem
 import com.rukatv.iptv.ui.screens.HomeScreen
 import com.rukatv.iptv.ui.screens.LoginScreen
 import com.rukatv.iptv.ui.screens.PlayerScreen
+import com.rukatv.iptv.ui.theme.isTvDevice
 import com.rukatv.iptv.ui.theme.phoneColorScheme
+import com.rukatv.iptv.ui.theme.tvColorScheme
 import com.rukatv.iptv.ui.viewmodel.LoginViewModel
 
 class MainActivity : ComponentActivity() {
@@ -28,33 +32,46 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val credsStore = CredentialsStore(this)
         val favStore = FavoritesStore(this)
+        val progressStore = PlaybackProgressStore(this)
+        val tv = isTvDevice(this)
 
         setContent {
-            MaterialTheme(colorScheme = phoneColorScheme()) {
-                AppContent(credsStore, favStore)
+            MaterialTheme(colorScheme = if (tv) tvColorScheme() else phoneColorScheme()) {
+                AppContent(credsStore, favStore, progressStore, tv)
             }
         }
     }
 }
 
 @Composable
-private fun AppContent(credsStore: CredentialsStore, favStore: FavoritesStore) {
-    var playerUrl by remember { mutableStateOf<Pair<String, String>?>(null) }
+private fun AppContent(credsStore: CredentialsStore, favStore: FavoritesStore, progressStore: PlaybackProgressStore, isTv: Boolean) {
+    var playerQueue by remember { mutableStateOf<List<PlayItem>?>(null) }
+    var playerStart by remember { mutableStateOf(0) }
+    var playerIsSeries by remember { mutableStateOf(false) }
     val loginVm = remember {
         LoginViewModel(credsStore) { host -> AuthRepository.buildApi(host) }
     }
     val loginState by loginVm.state.collectAsStateWithLifecycle()
 
     when {
-        playerUrl != null -> {
-            PlayerScreen(playerUrl!!.first, playerUrl!!.second) { playerUrl = null }
+        playerQueue != null -> {
+            PlayerScreen(playerQueue!!, playerStart, playerIsSeries, progressStore) {
+                playerQueue = null
+                playerIsSeries = false
+            }
         }
         loginState.loggedIn != null -> {
             val creds = loginState.loggedIn!!
             val api = remember(creds.host) { AuthRepository.buildApi(creds.host) }
             val catalog = remember(creds.host) { CatalogRepository(api, creds) }
             val favorites = remember { FavoritesRepository(favStore) }
-            HomeScreen(catalog, favorites) { url, title -> playerUrl = url to title }
+            HomeScreen(
+                catalog,
+                favorites,
+                isTv,
+                onPlay = { url, title -> playerQueue = listOf(PlayItem(url, title)); playerStart = 0; playerIsSeries = false },
+                onPlayQueue = { items, start -> playerQueue = items; playerStart = start; playerIsSeries = true }
+            )
         }
         else -> {
             LoginScreen(loginVm) { }
