@@ -61,6 +61,7 @@ export function createCatalogRepository(supabase) {
         release_date: m.release_date || "",
         stream_url: m.player_url || "",
         tmdb_id: m.tmdb_id,
+        genre_ids: parseJsonArray(m.genre_ids),
       }));
     },
 
@@ -80,6 +81,7 @@ export function createCatalogRepository(supabase) {
         release_date: s.first_air_date || "",
         rating: String(s.vote_average || ""),
         tmdb_id: s.tmdb_id,
+        genre_ids: parseJsonArray(s.genre_ids),
       }));
     },
 

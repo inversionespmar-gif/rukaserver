@@ -37,7 +37,8 @@ data class VodStream(
     val poster: String = "",
     val plot: String = "",
     @Json(name = "release_date") val releaseDate: String = "",
-    val rating: String = ""
+    val rating: String = "",
+    @Json(name = "genre_ids") val genreIds: List<Int> = emptyList()
 )
 
 data class SeriesItem(
@@ -47,7 +48,8 @@ data class SeriesItem(
     val poster: String = "",
     val plot: String = "",
     @Json(name = "release_date") val releaseDate: String = "",
-    val rating: String = ""
+    val rating: String = "",
+    @Json(name = "genre_ids") val genreIds: List<Int> = emptyList()
 )
 
 data class SeriesInfo(
