@@ -99,8 +99,9 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
     try {
       const upstream = await fetchProxied(target, extra);
       const ct = upstream.headers.get("content-type") || "";
+      const isM3u8 = ct.includes("mpegurl") || ct.includes("vnd.apple.mpegurl") || /\.m3u8(\?|$)/i.test(target);
       res.status(upstream.status);
-      if (ct.includes("mpegurl") || ct.includes("vnd.apple.mpegurl")) {
+      if (isM3u8) {
         const text = await upstream.text();
         const base = new URL(target).href;
         const rewritten = rewriteM3u8(text, base, "/proxy/", token);
