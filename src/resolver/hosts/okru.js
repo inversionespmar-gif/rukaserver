@@ -22,12 +22,20 @@ export async function resolveOkru(url, { fetchImpl = fetch } = {}) {
     try { data = JSON.parse(json); } catch { return null; }
 
     const flashvars = data?.flashvars || data?.videoSources || data;
-    // Try HLS first
+
+    // Try HLS first (direct or via metadata JSON)
     const hlsUrl = flashvars?.hls || flashvars?.hlsManifestUrl;
     if (hlsUrl) return { url: hlsUrl, type: "m3u8", referer: "https://ok.ru/" };
 
-    // Try videos array (quality list)
-    const videos = flashvars?.videos;
+    // Parse metadata JSON (ok.ru stores video info here)
+    let meta = null;
+    if (flashvars?.metadata) {
+      try { meta = typeof flashvars.metadata === "string" ? JSON.parse(flashvars.metadata) : flashvars.metadata; } catch {}
+    }
+    if (meta?.ondemandHls) return { url: meta.ondemandHls, type: "m3u8", referer: "https://ok.ru/" };
+
+    // Try videos array (quality list) — check both flashvars and metadata
+    const videos = flashvars?.videos || meta?.videos;
     if (Array.isArray(videos) && videos.length) {
       const mp4 = videos.find(v => v.name === "full") || videos[videos.length - 1];
       if (mp4?.url) return { url: mp4.url, type: "mp4", referer: "https://ok.ru/" };
