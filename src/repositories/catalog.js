@@ -1,4 +1,5 @@
 import { tmdbImage } from "../tmdb.js";
+import { resolveBestLeague, isBestLeagueUrl } from "../resolver/bestleague.js";
 
 function parseJsonArray(v) {
   try { return JSON.parse(v || "[]"); } catch { return []; }
@@ -50,15 +51,24 @@ export function createCatalogRepository(supabase) {
       } else {
         rows = await all("tv_channels");
       }
-      return rows.map((c) => ({
-        stream_id: c.id,
-        name: c.canal,
-        stream_type: "live",
-        stream_icon: c.logo || "",
-        category_id: c.pais || "",
-        added: "",
-        is_adult: "0",
-        stream_url: c.m3u8 || "",
+      return await Promise.all(rows.map(async (c) => {
+        let streamUrl = c.m3u8 || "";
+        if (streamUrl && isBestLeagueUrl(streamUrl)) {
+          try {
+            const resolved = await resolveBestLeague(streamUrl);
+            if (resolved) streamUrl = resolved;
+          } catch {}
+        }
+        return {
+          stream_id: c.id,
+          name: c.canal,
+          stream_type: "live",
+          stream_icon: c.logo || "",
+          category_id: c.pais || "",
+          added: "",
+          is_adult: "0",
+          stream_url: streamUrl,
+        };
       }));
     },
 

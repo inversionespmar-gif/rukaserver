@@ -8,8 +8,12 @@ import { createUsersRepository } from "../src/repositories/users.js";
 function chainable(result) {
   return {
     eq: () => chainable(result),
-    order: async () => result,
+    order: () => chainable(result),
+    range: () => chainable(result),
+    select: () => chainable(result),
     maybeSingle: async () => result,
+    get data() { return result?.data ?? result; },
+    get error() { return result?.error ?? null; },
   };
 }
 
@@ -23,9 +27,7 @@ const fakeSupabase = {
       series_metadata: { data: [], error: null },
       series_episodes: { data: [], error: null },
     }[table];
-    return {
-      select: () => chainable(data),
-    };
+    return chainable(data);
   },
 };
 
