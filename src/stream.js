@@ -1,4 +1,5 @@
 import { rewriteM3u8 } from "./stream/hls.js";
+import { rewriteMpd } from "./stream/dash.js";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
@@ -100,12 +101,20 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
       const upstream = await fetchProxied(target, extra);
       const ct = upstream.headers.get("content-type") || "";
       const isM3u8 = ct.includes("mpegurl") || ct.includes("vnd.apple.mpegurl") || /\.m3u8(\?|$)/i.test(target);
+      const isMpd = ct.includes("dash") || ct.includes("xml") || /\.mpd(\?|$)/i.test(target);
       res.status(upstream.status);
       if (isM3u8) {
         const text = await upstream.text();
         const base = new URL(target).href;
         const rewritten = rewriteM3u8(text, base, "/proxy/", token);
         res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+        return res.send(rewritten);
+      }
+      if (isMpd) {
+        const text = await upstream.text();
+        const base = new URL(target).href;
+        const rewritten = rewriteMpd(text, base, "/proxy/", token);
+        res.setHeader("Content-Type", "application/dash+xml");
         return res.send(rewritten);
       }
       if (ct) res.setHeader("Content-Type", ct);
@@ -137,18 +146,21 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
       const upstream = await fetchProxied(channel.stream_url);
       if (!upstream.ok) return res.status(upstream.status).send("live_upstream_error");
       const ct = upstream.headers.get("content-type") || "";
-      // HLS manifests (.m3u8) need their internal URLs rewritten so the player
-      // fetches segments through our /proxy endpoint.
-      if (ct.includes("mpegurl") || ct.includes("vnd.apple.mpegurl") || channel.stream_url.endsWith(".m3u8")) {
+      const urlLower = channel.stream_url.toLowerCase();
+      if (ct.includes("mpegurl") || ct.includes("vnd.apple.mpegurl") || urlLower.endsWith(".m3u8")) {
         const text = await upstream.text();
         const base = new URL(channel.stream_url).href;
         const rewritten = rewriteM3u8(text, base, "/proxy/");
         res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
         return res.send(rewritten);
       }
-      // MPEG-TS / raw streams (e.g. http://host/play/xxxx with no extension):
-      // stream the bytes through so ExoPlayer can demux them. Do NOT buffer the
-      // whole body (live TS never ends), just pipe it to the response.
+      if (ct.includes("dash") || ct.includes("xml") || urlLower.endsWith(".mpd")) {
+        const text = await upstream.text();
+        const base = new URL(channel.stream_url).href;
+        const rewritten = rewriteMpd(text, base, "/proxy/");
+        res.setHeader("Content-Type", "application/dash+xml");
+        return res.send(rewritten);
+      }
       if (ct) res.setHeader("Content-Type", ct);
       res.setHeader("Cache-Control", "no-cache");
       res.status(200);

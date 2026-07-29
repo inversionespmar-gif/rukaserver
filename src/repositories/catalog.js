@@ -56,7 +56,7 @@ export function createCatalogRepository(supabase) {
         if (streamUrl && isBestLeagueUrl(streamUrl)) {
           try {
             const resolved = await resolveBestLeague(streamUrl);
-            if (resolved) streamUrl = resolved;
+            if (resolved) streamUrl = "/proxy/" + encodeURIComponent(resolved);
           } catch {}
         }
         return {
