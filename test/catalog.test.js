@@ -6,13 +6,15 @@ import { tmdbImage } from "../src/tmdb.js";
 function makeFakeSupabase(tables) {
   const builder = (rows) => {
     let result = rows;
+    let rangeFrom = 0;
+    let rangeTo = rows.length - 1;
     const b = {
       error: null,
-      get data() { return result; },
+      get data() { return result.slice(rangeFrom, rangeTo + 1); },
       select() { return b; },
       eq(field, value) { result = result.filter((r) => r[field] === value); return b; },
       order() { return b; },
-      range() { return b; },
+      range(from, to) { rangeFrom = from; rangeTo = to; return b; },
       maybeSingle() { return { data: result && result.length ? result[0] : null, error: null }; },
     };
     return b;

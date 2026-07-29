@@ -5,10 +5,21 @@ function parseJsonArray(v) {
 }
 
 export function createCatalogRepository(supabase) {
+  const PAGE_SIZE = 1000;
+
   async function all(table, select = "*") {
-    const { data, error } = await supabase.from(table).select(select).order("id").range(0, 65535);
-    if (error) throw error;
-    return data || [];
+    const allRows = [];
+    let offset = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from(table).select(select).order("id").range(offset, offset + PAGE_SIZE - 1);
+      if (error) throw error;
+      const rows = data || [];
+      allRows.push(...rows);
+      if (rows.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
+    }
+    return allRows;
   }
 
   return {
@@ -25,9 +36,17 @@ export function createCatalogRepository(supabase) {
     async getLiveStreams(categoryId) {
       let rows;
       if (categoryId) {
-        const { data, error } = await supabase.from("tv_channels").select("*").eq("pais", categoryId).order("id").range(0, 65535);
-        if (error) throw error;
-        rows = data || [];
+        rows = [];
+        let offset = 0;
+        while (true) {
+          const { data, error } = await supabase
+            .from("tv_channels").select("*").eq("pais", categoryId).order("id").range(offset, offset + PAGE_SIZE - 1);
+          if (error) throw error;
+          const page = data || [];
+          rows.push(...page);
+          if (page.length < PAGE_SIZE) break;
+          offset += PAGE_SIZE;
+        }
       } else {
         rows = await all("tv_channels");
       }
