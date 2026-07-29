@@ -12,6 +12,7 @@ function makeFakeSupabase(tables) {
       select() { return b; },
       eq(field, value) { result = result.filter((r) => r[field] === value); return b; },
       order() { return b; },
+      range() { return b; },
       maybeSingle() { return { data: result && result.length ? result[0] : null, error: null }; },
     };
     return b;
