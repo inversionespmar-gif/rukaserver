@@ -6,7 +6,7 @@ function parseJsonArray(v) {
 
 export function createCatalogRepository(supabase) {
   async function all(table, select = "*") {
-    const { data, error } = await supabase.from(table).select(select).order("id");
+    const { data, error } = await supabase.from(table).select(select).order("id").range(0, 65535);
     if (error) throw error;
     return data || [];
   }
@@ -25,7 +25,7 @@ export function createCatalogRepository(supabase) {
     async getLiveStreams(categoryId) {
       let rows;
       if (categoryId) {
-        const { data, error } = await supabase.from("tv_channels").select("*").eq("pais", categoryId).order("id");
+        const { data, error } = await supabase.from("tv_channels").select("*").eq("pais", categoryId).order("id").range(0, 65535);
         if (error) throw error;
         rows = data || [];
       } else {
