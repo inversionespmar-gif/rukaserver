@@ -1,5 +1,6 @@
 import { rewriteM3u8 } from "./stream/hls.js";
 import { rewriteMpd } from "./stream/dash.js";
+import { resolveBestLeague, isBestLeagueUrl } from "./resolver/bestleague.js";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
@@ -142,21 +143,42 @@ export function registerStreamRoutes(app, { auth, catalog, resolver, config }) {
     const channels = await catalog.getLiveStreams();
     const channel = channels.find((c) => String(c.stream_id) === String(req.params.id));
     if (!channel || !channel.stream_url) return res.status(404).end();
+
+    let targetUrl = channel.stream_url;
+    if (isBestLeagueUrl(targetUrl)) {
+      try {
+        const resolved = await resolveBestLeague(targetUrl);
+        if (resolved) targetUrl = resolved;
+      } catch {}
+    }
+
     try {
-      const upstream = await fetchProxied(channel.stream_url);
+      let upstream = await fetchProxied(targetUrl);
+      let ct = upstream.headers.get("content-type") || "";
+
+      if ((!upstream.ok || ct.includes("text/html")) && isBestLeagueUrl(channel.stream_url) && targetUrl === channel.stream_url) {
+        try {
+          const resolved = await resolveBestLeague(channel.stream_url);
+          if (resolved) {
+            targetUrl = resolved;
+            upstream = await fetchProxied(targetUrl);
+            ct = upstream.headers.get("content-type") || "";
+          }
+        } catch {}
+      }
+
       if (!upstream.ok) return res.status(upstream.status).send("live_upstream_error");
-      const ct = upstream.headers.get("content-type") || "";
-      const urlLower = channel.stream_url.toLowerCase();
+      const urlLower = targetUrl.toLowerCase();
       if (ct.includes("mpegurl") || ct.includes("vnd.apple.mpegurl") || urlLower.endsWith(".m3u8")) {
         const text = await upstream.text();
-        const base = new URL(channel.stream_url).href;
+        const base = new URL(targetUrl).href;
         const rewritten = rewriteM3u8(text, base, "/proxy/");
         res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
         return res.send(rewritten);
       }
       if (ct.includes("dash") || ct.includes("xml") || urlLower.endsWith(".mpd")) {
         const text = await upstream.text();
-        const base = new URL(channel.stream_url).href;
+        const base = new URL(targetUrl).href;
         const rewritten = rewriteMpd(text, base, "/proxy/");
         res.setHeader("Content-Type", "application/dash+xml");
         return res.send(rewritten);

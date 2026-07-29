@@ -31,14 +31,24 @@ function fetchText(url, timeoutMs = 15000) {
 function extractIframeSrc(html) {
   const m = html.match(/<iframe[^>]+src="([^"]+)"/i);
   if (!m) return null;
-  let url = m[1].trim();
-  if (url.startsWith("https://")) return url;
-  if (url.startsWith("//")) return "https:" + url;
-  return url;
+  const raw = m[1];
+
+  const getParam = extractGetParam(raw);
+  const domainMatch = raw.match(/(?:https?:\/\/|\/\/)?([a-z0-9.-]*bestleague[a-z0-9.-]*)/i);
+  const domain = domainMatch ? domainMatch[1] : "bestleague.life";
+
+  if (getParam) {
+    return `https://${domain}/tok.html?get=${getParam}`;
+  }
+
+  let cleanUrl = raw.replace(/<[^>]*>/g, "").replace(/[\r\n\t]/g, "").trim();
+  if (cleanUrl.startsWith("//")) cleanUrl = "https:" + cleanUrl;
+  return cleanUrl;
 }
 
 function extractGetParam(url) {
-  const m = url.match(/[?&]get=([^&"\s]+)/);
+  if (!url) return null;
+  const m = url.match(/[?&]get=([^&"\s<>]+)/);
   return m ? m[1] : null;
 }
 
@@ -71,13 +81,20 @@ export async function resolveBestLeague(embedUrl) {
   const iframeSrc = extractIframeSrc(html);
   if (!iframeSrc) return null;
 
-  const getParam = extractGetParam(iframeSrc);
+  const getParam = extractGetParam(iframeSrc) || extractGetParam(html);
   if (!getParam) return null;
 
   const channelName = Buffer.from(getParam, "base64").toString("utf-8");
   const number = CHANNEL_NUMBERS[getParam] ?? 3;
 
-  const tokHtml = await fetchText(iframeSrc);
+  let tokHtml = await fetchText(iframeSrc);
+  if (!tokHtml && iframeSrc.includes("bestleague.life")) {
+    const fallbackSrc = iframeSrc.replace("bestleague.life", "bestleague.top");
+    tokHtml = await fetchText(fallbackSrc);
+  } else if (!tokHtml && iframeSrc.includes("bestleague.top")) {
+    const fallbackSrc = iframeSrc.replace("bestleague.top", "bestleague.life");
+    tokHtml = await fetchText(fallbackSrc);
+  }
   if (!tokHtml) return null;
 
   const cdnTokens = parseCdnTokens(tokHtml);
