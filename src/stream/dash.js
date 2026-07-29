@@ -14,11 +14,11 @@ function buildProxy(proxyBase, abs, token) {
 export function rewriteMpd(mpdText, mpdUrl, proxyBase, token = "") {
   const base = mpdUrl.replace(/\/[^/]*$/, "/");
   return mpdText.replace(
-    /(<SegmentTemplate[^>]*\s)(initialization|media)=["']([^"']+)["']/gi,
-    (m, prefix, attr, val) => {
+    /\b(initialization|media)=["']([^"']+)["']/gi,
+    (m, attr, val) => {
       if (val.startsWith("/proxy/")) return m;
       const abs = resolveUrl(val, base);
-      return `${prefix}${attr}="${buildProxy(proxyBase, abs, token)}"`;
+      return `${attr}="${buildProxy(proxyBase, abs, token)}"`;
     }
   ).replace(
     /<BaseURL>([^<]+)<\/BaseURL>/gi,
