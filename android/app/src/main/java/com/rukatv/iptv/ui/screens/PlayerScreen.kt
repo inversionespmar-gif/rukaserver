@@ -378,6 +378,18 @@ fun PlayerScreen(
                     val pv = player.playerView(ctx) { visible ->
                         controlsVisible = visible
                     }
+                    
+                    // Touch listener to show/hide controls on tap
+                    fl.setOnTouchListener { _, _ ->
+                        if (controlsVisibleRef.value) {
+                            controlsVisible = false
+                        } else {
+                            showControls()
+                            hideControlsDelayed()
+                        }
+                        true
+                    }
+                    
                     pv.setOnKeyListener { _, keyCode, event ->
                         if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
                         val ctrlVisible = controlsVisibleRef.value

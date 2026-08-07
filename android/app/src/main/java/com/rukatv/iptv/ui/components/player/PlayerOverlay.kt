@@ -39,10 +39,11 @@ fun PlayerOverlay(
         exit = fadeOut(),
         modifier = modifier.fillMaxSize()
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Top gradient with title and actions
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Top gradient with title and actions - CLICKABLE
             Box(
                 modifier = Modifier
+                    .align(Alignment.TopCenter)
                     .fillMaxWidth()
                     .height(100.dp)
                     .background(
@@ -51,7 +52,7 @@ fun PlayerOverlay(
                         )
                     )
                     .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
+                        interactionSource = MutableInteractionSource(),
                         indication = null
                     ) { onTap() }
                     .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -72,20 +73,10 @@ fun PlayerOverlay(
                 }
             }
 
-            // Spacer that allows taps to pass through to video
+            // Bottom gradient with controls - CLICKABLE
             Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { onTap() }
-            )
-
-            // Bottom gradient with controls
-            Box(
-                modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
@@ -93,7 +84,7 @@ fun PlayerOverlay(
                         )
                     )
                     .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
+                        interactionSource = MutableInteractionSource(),
                         indication = null
                     ) { onTap() }
             ) {

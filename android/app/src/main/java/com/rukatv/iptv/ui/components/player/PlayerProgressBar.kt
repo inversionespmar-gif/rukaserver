@@ -39,9 +39,11 @@ fun PlayerProgressBar(
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val currentSeconds = currentPositionMs / 1000
-    val durationSeconds = durationMs / 1000
-    val progress = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+    // Handle invalid duration (C.TIME_UNSET = Long.MIN_VALUE)
+    val validDurationMs = if (durationMs > 0 && durationMs < Long.MAX_VALUE / 2) durationMs else 0L
+    val currentSeconds = (currentPositionMs / 1000).coerceAtLeast(0)
+    val durationSeconds = (validDurationMs / 1000).coerceAtLeast(0)
+    val progress = if (validDurationMs > 0) (currentPositionMs.toFloat() / validDurationMs).coerceIn(0f, 1f) else 0f
 
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(progress) }
@@ -57,7 +59,7 @@ fun PlayerProgressBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = formatTime(if (isDragging) (dragProgress * durationMs).toLong() / 1000 else currentSeconds),
+            text = formatTime(if (isDragging) (dragProgress * validDurationMs).toLong() / 1000 else currentSeconds),
             color = PlayerSecondary,
             fontSize = 11.sp
         )
@@ -70,7 +72,7 @@ fun PlayerProgressBar(
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
                         val newProgress = (offset.x / boxSize.width).coerceIn(0f, 1f)
-                        onSeek((newProgress * durationMs).toLong())
+                        onSeek((newProgress * validDurationMs).toLong())
                     }
                 }
                 .pointerInput(Unit) {
@@ -81,7 +83,7 @@ fun PlayerProgressBar(
                         },
                         onDragEnd = {
                             isDragging = false
-                            onSeek((dragProgress * durationMs).toLong())
+                            onSeek((dragProgress * validDurationMs).toLong())
                         },
                         onDragCancel = {
                             isDragging = false
