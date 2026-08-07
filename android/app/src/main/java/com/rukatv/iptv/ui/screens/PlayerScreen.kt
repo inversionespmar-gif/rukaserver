@@ -105,6 +105,7 @@ fun PlayerScreen(
     val currentIsSeries by rememberUpdatedState(isSeries)
 
     var controlsVisible by remember { mutableStateOf(true) }
+    var controlsTimer by remember { mutableStateOf(0L) }
 
     var resumeOverlayVisible by remember { mutableStateOf(false) }
     var resumePosition by remember { mutableStateOf(0L) }
@@ -130,6 +131,20 @@ fun PlayerScreen(
             index -= 1
             showNextPrompt = false
             hasPlaybackError = false
+        }
+    }
+
+    fun showControls() {
+        controlsVisible = true
+        controlsTimer = System.currentTimeMillis()
+    }
+
+    fun hideControlsDelayed() {
+        scope.launch {
+            delay(3000)
+            if (System.currentTimeMillis() - controlsTimer >= 2900) {
+                controlsVisible = false
+            }
         }
     }
 
@@ -289,6 +304,7 @@ fun PlayerScreen(
                 if (ev.type == KeyEventType.KeyDown) {
                     val nativeEvent = ev.nativeKeyEvent
                     val keyCode = nativeEvent.keyCode
+                    showControls()
                     when (keyCode) {
                         KeyEvent.KEYCODE_DPAD_CENTER,
                         KeyEvent.KEYCODE_ENTER,
@@ -296,14 +312,17 @@ fun PlayerScreen(
                         KeyEvent.KEYCODE_BUTTON_A,
                         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                             runCatching { player.player.playWhenReady = !player.player.playWhenReady }
+                            hideControlsDelayed()
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_PLAY -> {
                             runCatching { player.player.playWhenReady = true }
+                            hideControlsDelayed()
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_PAUSE -> {
                             runCatching { player.player.playWhenReady = false }
+                            hideControlsDelayed()
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_LEFT,
@@ -311,6 +330,7 @@ fun PlayerScreen(
                         KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD -> {
                             val pos = runCatching { player.player.currentPosition }.getOrDefault(0L)
                             player.seekTo((pos - 10000).coerceAtLeast(0L))
+                            hideControlsDelayed()
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_RIGHT,
@@ -318,17 +338,23 @@ fun PlayerScreen(
                         KeyEvent.KEYCODE_MEDIA_STEP_FORWARD -> {
                             val pos = runCatching { player.player.currentPosition }.getOrDefault(0L)
                             player.seekTo(pos + 10000)
+                            hideControlsDelayed()
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_NEXT -> {
                             nextEpisode()
+                            hideControlsDelayed()
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
                             prevEpisode()
+                            hideControlsDelayed()
                             true
                         }
-                        else -> false
+                        else -> {
+                            hideControlsDelayed()
+                            false
+                        }
                     }
                 } else false
             }
@@ -349,7 +375,8 @@ fun PlayerScreen(
                             KeyEvent.KEYCODE_DPAD_CENTER -> {
                                 if (!ctrlVisible) {
                                     runCatching { player.player.playWhenReady = !player.player.playWhenReady }
-                                    pv.showController()
+                                    showControls()
+                                    hideControlsDelayed()
                                     true
                                 } else false
                             }
@@ -357,7 +384,8 @@ fun PlayerScreen(
                                 if (!ctrlVisible) {
                                     val pos = runCatching { player.player.currentPosition }.getOrDefault(0L)
                                     player.seekTo((pos - 10000).coerceAtLeast(0L))
-                                    pv.showController()
+                                    showControls()
+                                    hideControlsDelayed()
                                     true
                                 } else false
                             }
@@ -365,7 +393,8 @@ fun PlayerScreen(
                                 if (!ctrlVisible) {
                                     val pos = runCatching { player.player.currentPosition }.getOrDefault(0L)
                                     player.seekTo(pos + 10000)
-                                    pv.showController()
+                                    showControls()
+                                    hideControlsDelayed()
                                     true
                                 } else false
                             }
@@ -373,21 +402,25 @@ fun PlayerScreen(
                             KeyEvent.KEYCODE_MEDIA_PLAY,
                             KeyEvent.KEYCODE_MEDIA_PAUSE -> {
                                 runCatching { player.player.playWhenReady = !player.player.playWhenReady }
-                                pv.showController()
+                                showControls()
+                                hideControlsDelayed()
                                 true
                             }
                             KeyEvent.KEYCODE_MEDIA_NEXT -> {
                                 nextEpisode()
-                                pv.showController()
+                                showControls()
+                                hideControlsDelayed()
                                 true
                             }
                             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
                                 prevEpisode()
-                                pv.showController()
+                                showControls()
+                                hideControlsDelayed()
                                 true
                             }
                             else -> {
-                                pv.showController()
+                                showControls()
+                                hideControlsDelayed()
                                 false
                             }
                         }
