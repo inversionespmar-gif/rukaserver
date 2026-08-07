@@ -37,7 +37,12 @@ fun Modifier.dpadFocus(
         )
         .then(
             if (isFocused) {
-                Modifier.shadow(8.dp, PlayerGlow, shape = RoundedCornerShape(4.dp))
+                Modifier.shadow(
+                    elevation = 8.dp,
+                    shape = RoundedCornerShape(4.dp),
+                    ambientColor = PlayerGlow,
+                    spotColor = PlayerGlow
+                )
             } else {
                 Modifier
             }
