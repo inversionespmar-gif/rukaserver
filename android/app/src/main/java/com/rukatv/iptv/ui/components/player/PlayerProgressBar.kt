@@ -1,6 +1,8 @@
 package com.rukatv.iptv.ui.components.player
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -13,10 +15,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rukatv.iptv.ui.theme.PlayerAccent
@@ -33,6 +43,12 @@ fun PlayerProgressBar(
     val durationSeconds = durationMs / 1000
     val progress = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
 
+    var isDragging by remember { mutableStateOf(false) }
+    var dragProgress by remember { mutableFloatStateOf(progress) }
+    var boxSize by remember { mutableStateOf(IntSize.Zero) }
+
+    val displayProgress = if (isDragging) dragProgress else progress
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -41,7 +57,7 @@ fun PlayerProgressBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = formatTime(currentSeconds),
+            text = formatTime(if (isDragging) (dragProgress * durationMs).toLong() / 1000 else currentSeconds),
             color = PlayerSecondary,
             fontSize = 11.sp
         )
@@ -49,27 +65,63 @@ fun PlayerProgressBar(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(6.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(Color(0xFF374151))
+                .height(20.dp)
+                .onSizeChanged { boxSize = it }
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        val newProgress = (offset.x / boxSize.width).coerceIn(0f, 1f)
+                        onSeek((newProgress * durationMs).toLong())
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            isDragging = true
+                            dragProgress = (offset.x / boxSize.width).coerceIn(0f, 1f)
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            onSeek((dragProgress * durationMs).toLong())
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            val newProgress = (dragProgress + dragAmount / boxSize.width).coerceIn(0f, 1f)
+                            dragProgress = newProgress
+                        }
+                    )
+                },
+            contentAlignment = Alignment.CenterStart
         ) {
+            // Track background
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(progress)
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color(0xFF374151))
+            )
+
+            // Progress fill
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(displayProgress)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
                     .background(PlayerAccent)
             )
 
+            // Thumb
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(progress)
-                    .height(6.dp)
+                    .fillMaxWidth(displayProgress)
+                    .height(4.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .offset(x = (-8).dp)
-                        .size(16.dp)
+                        .size(if (isDragging) 18.dp else 14.dp)
                         .clip(CircleShape)
                         .background(PlayerAccent)
                         .padding(2.dp)

@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -72,6 +73,7 @@ import com.rukatv.iptv.ui.components.player.SleepTimerButton
 import com.rukatv.iptv.ui.components.player.SubtitleButton
 import com.rukatv.iptv.ui.components.player.SpeedButton
 import com.rukatv.iptv.ui.components.player.QualityButton
+import com.rukatv.iptv.ui.components.player.SpeedMenu
 import com.rukatv.iptv.ui.theme.Accent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -106,6 +108,14 @@ fun PlayerScreen(
 
     var controlsVisible by remember { mutableStateOf(true) }
     var controlsTimer by remember { mutableStateOf(0L) }
+
+    // Premium player features state
+    var currentSpeed by remember { mutableFloatStateOf(1.0f) }
+    var isFavorite by remember { mutableStateOf(false) }
+    var sleepTimerMinutes by remember { mutableStateOf<Int?>(null) }
+    var showSpeedMenu by remember { mutableStateOf(false) }
+    var showSubtitleMenu by remember { mutableStateOf(false) }
+    var showQualityMenu by remember { mutableStateOf(false) }
 
     var resumeOverlayVisible by remember { mutableStateOf(false) }
     var resumePosition by remember { mutableStateOf(0L) }
@@ -440,11 +450,27 @@ fun PlayerScreen(
         PlayerOverlay(
             title = queue.getOrNull(index)?.title ?: "",
             visible = controlsVisible && !hasPlaybackError,
+            onTap = {
+                if (controlsVisible) {
+                    controlsVisible = false
+                } else {
+                    showControls()
+                    hideControlsDelayed()
+                }
+            },
             topActions = {
-                ScreenshotButton(onScreenshot = { /* Captura de pantalla - TODO */ })
+                ScreenshotButton(onScreenshot = {
+                    // TODO: Implement screenshot capture
+                    showControls()
+                    hideControlsDelayed()
+                })
                 FavoriteButton(
-                    isFavorite = false,
-                    onToggle = { /* Favorito - TODO */ }
+                    isFavorite = isFavorite,
+                    onToggle = {
+                        isFavorite = !isFavorite
+                        showControls()
+                        hideControlsDelayed()
+                    }
                 )
             },
             bottomContent = {
@@ -473,14 +499,63 @@ fun PlayerScreen(
                         )
 
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            SubtitleButton(onClick = { /* Menú de subtítulos - TODO */ })
-                            SpeedButton(currentSpeed = 1.0f, onClick = { /* Menú de velocidad - TODO */ })
-                            QualityButton(onClick = { /* Menú de calidad - TODO */ })
-                            PipButton(onPipRequested = { /* Picture-in-Picture - TODO */ })
-                            SleepTimerButton(remainingMinutes = null, onSelectTimer = { /* Temporizador - TODO */ })
+                            SubtitleButton(onClick = {
+                                showSubtitleMenu = !showSubtitleMenu
+                                showSpeedMenu = false
+                                showQualityMenu = false
+                                showControls()
+                            })
+                            SpeedButton(
+                                currentSpeed = currentSpeed,
+                                onClick = {
+                                    showSpeedMenu = !showSpeedMenu
+                                    showSubtitleMenu = false
+                                    showQualityMenu = false
+                                    showControls()
+                                }
+                            )
+                            QualityButton(onClick = {
+                                showQualityMenu = !showQualityMenu
+                                showSubtitleMenu = false
+                                showSpeedMenu = false
+                                showControls()
+                            })
+                            PipButton(onPipRequested = {
+                                // TODO: Implement PiP
+                                showControls()
+                                hideControlsDelayed()
+                            })
+                            SleepTimerButton(
+                                remainingMinutes = sleepTimerMinutes,
+                                onSelectTimer = { minutes ->
+                                    sleepTimerMinutes = minutes
+                                    showControls()
+                                    hideControlsDelayed()
+                                }
+                            )
                         }
                     }
                 }
+            }
+        )
+
+        // Speed Menu
+        SpeedMenu(
+            visible = showSpeedMenu,
+            currentSpeed = currentSpeed,
+            onSpeedSelected = { speed ->
+                currentSpeed = speed
+                runCatching {
+                    player.player.setPlaybackSpeed(speed)
+                }
+                showSpeedMenu = false
+                showControls()
+                hideControlsDelayed()
+            },
+            onDismiss = {
+                showSpeedMenu = false
+                showControls()
+                hideControlsDelayed()
             }
         )
 

@@ -4,8 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +29,7 @@ fun PlayerOverlay(
     title: String,
     visible: Boolean,
     modifier: Modifier = Modifier,
+    onTap: () -> Unit = {},
     topActions: @Composable () -> Unit = {},
     bottomContent: @Composable () -> Unit = {}
 ) {
@@ -35,7 +39,8 @@ fun PlayerOverlay(
         exit = fadeOut(),
         modifier = modifier.fillMaxSize()
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Top gradient with title and actions
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -45,6 +50,10 @@ fun PlayerOverlay(
                             listOf(Color(0xBB000000), Color.Transparent)
                         )
                     )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { onTap() }
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Text(
@@ -63,15 +72,30 @@ fun PlayerOverlay(
                 }
             }
 
+            // Spacer that allows taps to pass through to video
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { onTap() }
+            )
+
+            // Bottom gradient with controls
+            Box(
+                modifier = Modifier
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
                             listOf(Color.Transparent, Color(0xBB000000))
                         )
                     )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { onTap() }
             ) {
                 bottomContent()
             }
