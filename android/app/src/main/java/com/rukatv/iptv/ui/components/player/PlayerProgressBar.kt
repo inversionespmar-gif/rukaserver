@@ -1,0 +1,94 @@
+package com.rukatv.iptv.ui.components.player
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.rukatv.iptv.ui.theme.PlayerAccent
+import com.rukatv.iptv.ui.theme.PlayerSecondary
+
+@Composable
+fun PlayerProgressBar(
+    currentPositionMs: Long,
+    durationMs: Long,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentSeconds = currentPositionMs / 1000
+    val durationSeconds = durationMs / 1000
+    val progress = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = formatTime(currentSeconds),
+            color = PlayerSecondary,
+            fontSize = 11.sp
+        )
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color(0xFF374151))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress)
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(PlayerAccent)
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress)
+                    .height(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = (-8).dp)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(PlayerAccent)
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                )
+            }
+        }
+
+        Text(
+            text = formatTime(durationSeconds),
+            color = PlayerSecondary,
+            fontSize = 11.sp
+        )
+    }
+}
+
+private fun formatTime(seconds: Long): String {
+    val mins = seconds / 60
+    val secs = seconds % 60
+    return "%d:%02d".format(mins, secs)
+}
