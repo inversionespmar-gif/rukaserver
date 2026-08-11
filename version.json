@@ -1,7 +1,7 @@
 {
-  "versionCode": 2,
-  "versionName": "1.1.0",
-  "apkUrl": "https://github.com/inversionespmar-gif/rukaserver/releases/download/v1.1.0/app-release.apk",
-  "releaseNotes": "• Solucionado: 'Continuar viendo' guarda multiples contenidos simultaneamente sin sobreescribir\n• Nuevos metadatos reales de peliculas desde Rukaserver y TMDB (sinopsis, generos, directores y reparto)\n• Mejoras de rendimiento en la interfaz TV y movil",
+  "versionCode": 3,
+  "versionName": "1.2.0",
+  "apkUrl": "https://github.com/inversionespmar-gif/rukaserver/releases/download/v1.2.0/app-release.apk",
+  "releaseNotes": "• Nuevo rediseño Smart TV para detalles de películas y series\n• Mini reproductor embebido 16:9 con reproducción automática\n• Metadatos TMDB completos en 2 columnas (director, reparto, sinopsis, géneros)\n• Selector de episodios numérico para series y diálogo de reanudación mejorado",
   "forceUpdate": false
 }
