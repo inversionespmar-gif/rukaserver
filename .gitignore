@@ -19,3 +19,7 @@ local.properties
 *.apk
 # Excepto el APK de actualización publicado intencionalmente
 !public/update/app-release.apk
+
+# Keystore de firma - NUNCA subir a GitHub
+*.jks
+*.keystore

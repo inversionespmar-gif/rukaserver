@@ -13,11 +13,19 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+    signingConfigs {
+        create("release") {
+            storeFile = file("rukatv-release.jks")
+            storePassword = "rukatv2024bfstudio"
+            keyAlias = "rukatv"
+            keyPassword = "rukatv2024bfstudio"
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
             isCrunchPngs = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

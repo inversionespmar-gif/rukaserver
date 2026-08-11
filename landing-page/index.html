@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RukaTV — Televisión en Vivo, Películas y Series en HD/4K</title>
-  <meta name="description" content="Plataforma de entretenimiento conectada a Rukaserver. Disfruta de Canales de TV en directo, Películas de estreno y Series completas en tu Android y Smart TV.">
+  <title>RukaTV — Televisión, Películas y Series vía Rukaserver</title>
+  <meta name="description" content="RukaTV conecta tu dispositivo Android directamente a Rukaserver para disfrutar canales de TV en vivo, películas de estreno y series completas en HD y 4K.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <!-- Header Navigation -->
+  <!-- ══ NAVBAR ══ -->
   <nav class="navbar">
     <a href="#" class="nav-brand">
       <img src="assets/logo.png" alt="RukaTV Logo" class="official-logo">
@@ -20,131 +20,247 @@
     </a>
     <ul class="nav-links">
       <li><a href="#contenido" class="nav-link">Contenido</a></li>
-      <li><a href="#servicios" class="nav-link">Servidores</a></li>
-      <li><a href="#experiencia" class="nav-link">Experiencia</a></li>
+      <li><a href="#servidor" class="nav-link">Servidor</a></li>
+      <li><a href="#descargar" class="nav-link">Descargar</a></li>
       <li><span onclick="openModal('modal-doc')" class="nav-link">Documentación</span></li>
       <li><span onclick="openModal('modal-terms')" class="nav-link">Términos</span></li>
     </ul>
-    <a href="#contenido" class="btn-primary">✨ Explorar Contenido</a>
+    <a href="#descargar" class="btn-primary">⬇ Descargar App</a>
   </nav>
 
-  <!-- Hero Section -->
+  <!-- ══ HERO ══ -->
   <section class="hero">
     <div class="hero-content">
-      <div class="brand-hero-badge">
-        <img src="assets/logo.png" alt="RukaTV Official" class="hero-logo-img">
-        <span>RUKASERVER PLATFORM</span>
+      <div class="hero-badge">
+        <img src="assets/logo.png" alt="RukaTV">
+        RUKASERVER PLATFORM
       </div>
-      <h1 class="hero-title">Todo el entretenimiento en vivo y bajo demanda en un solo lugar</h1>
-      <p class="hero-description">
-        Conéctate directamente a los servidores de alta velocidad de <strong>Rukaserver</strong> y accede instantáneamente a cientos de canales de Televisión en Vivo, las mejores Películas de estreno y Series completas con máxima calidad HD/4K.
+      <h1 class="hero-title">
+        Tu entretenimiento en vivo,<br>
+        <span>conectado al servidor</span>
+      </h1>
+      <p class="hero-desc">
+        Conecta tu Android directamente a <strong>Rukaserver</strong> y accede al instante a cientos de Canales de TV en vivo, las mejores Películas y Series completas con calidad HD y 4K.
       </p>
       <div class="hero-actions">
-        <a href="#contenido" class="btn-primary">Ver Catálogo de Contenido</a>
-        <span onclick="openModal('modal-doc')" class="btn-secondary">Documentación del Servicio</span>
+        <a href="#descargar" class="btn-primary">⬇ Descargar Gratis</a>
+        <a href="#contenido" class="btn-secondary">Ver Contenido →</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <span class="stat-value">4K</span>
+          <span class="stat-label">Calidad Máxima</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">HLS</span>
+          <span class="stat-label">Stream Adaptativo</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">OTA</span>
+          <span class="stat-label">Auto-Actualización</span>
+        </div>
       </div>
     </div>
     <div class="hero-media">
-      <div class="hero-image-wrapper">
-        <img src="assets/hero_banner.png" alt="RukaTV Streaming Hub" class="hero-img">
+      <div class="hero-img-wrap">
+        <img src="assets/hero_banner.png" alt="RukaTV en acción" class="hero-img">
       </div>
     </div>
   </section>
 
-  <!-- Content Showcase Section -->
+  <!-- ══ CONTENIDO ══ -->
   <section id="contenido" class="section">
     <div class="section-header">
-      <div class="section-subtitle">¿QUÉ PUEDES VER EN RUKATV?</div>
-      <h2 class="section-title">Entretenimiento Ilimitado para Toda la Familia</h2>
+      <div class="section-label">¿Qué puedes ver?</div>
+      <h2 class="section-title">Todo el entretenimiento en un solo lugar</h2>
+      <p class="section-desc">Accede a un catálogo completo transmitido directamente desde los servidores de alta velocidad de Rukaserver.</p>
     </div>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">📺</div>
-        <h3 class="feature-title">Televisión en Vivo</h3>
-        <p class="feature-desc">Transmisiones estables de canales en directo: deportes, noticias internacionales, programas infantiles y eventos exclusivos sin interrupciones.</p>
+    <div class="content-grid">
+      <div class="content-card">
+        <div class="card-icon">📺</div>
+        <h3 class="card-title">Televisión en Vivo</h3>
+        <p class="card-desc">Canales nacionales e internacionales en transmisión continua: deportes en directo, noticias 24h, entretenimiento y contenido infantil sin interrupciones.</p>
       </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">🎬</div>
-        <h3 class="feature-title">Películas de Estreno</h3>
-        <p class="feature-desc">Un extenso catálogo de películas en calidad Ultra HD 4K y 1080p organizadas por categorías: Acción, Comedia, Drama, Terror, Ciencia Ficción y más.</p>
+      <div class="content-card">
+        <div class="card-icon">🎬</div>
+        <h3 class="card-title">Películas en HD y 4K</h3>
+        <p class="card-desc">Extenso catálogo de películas organizadas por género — Acción, Comedia, Drama, Terror, Ciencia Ficción — con calidad hasta Ultra HD 4K.</p>
       </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">🍿</div>
-        <h3 class="feature-title">Series Completas</h3>
-        <p class="feature-desc">Temporadas enteras de tus series favoritas con reproducción continua episodio a episodio, guardado de avance automático y saltar introducción.</p>
+      <div class="content-card">
+        <div class="card-icon">🍿</div>
+        <h3 class="card-title">Series Completas</h3>
+        <p class="card-desc">Temporadas completas de tus series favoritas con reproducción automática de episodios, progreso guardado y función de saltar introducción.</p>
       </div>
     </div>
   </section>
 
-  <!-- Server & Connection Section -->
-  <section id="servicios" class="section">
-    <div class="showcase-container">
-      <div class="showcase-media">
-        <img src="assets/player_showcase.png" alt="Rukaserver Infrastructure" class="showcase-img">
+  <div class="divider"></div>
+
+  <!-- ══ SERVIDOR ══ -->
+  <section id="servidor" class="section">
+    <div class="showcase-wrap">
+      <div class="showcase-img-wrap">
+        <img src="assets/player_showcase.png" alt="Rukaserver" class="showcase-img">
       </div>
-      <div class="showcase-info">
-        <div class="section-subtitle">CONEXIÓN DIRECTA A RUKASERVER</div>
-        <h2 class="section-title">Infraestructura rápida, privada y confiable</h2>
-        <p style="color: var(--text-secondary); margin-top: 16px; margin-bottom: 20px;">
-          Nuestra aplicación se conecta a los servidores de alta disponibilidad de Rukaserver para garantizar transmisiones fluidas y sin demoras.
-        </p>
-        <ul class="tech-list">
-          <li class="tech-item"><span class="tech-icon">✓</span> Autenticación segura mediante API Xtream Codes y Supabase</li>
-          <li class="tech-item"><span class="tech-icon">✓</span> Carga rápida de listas de canales y guía EPG en vivo</li>
-          <li class="tech-item"><span class="tech-icon">✓</span> Sincronización de Favoritos y progreso entre dispositivos</li>
-          <li class="tech-item"><span class="tech-icon">✓</span> Optimizado para celulares Android, Tablets y Smart TVs / Android TV</li>
+      <div class="showcase-body">
+        <div class="section-label">Conexión directa a Rukaserver</div>
+        <h2 class="section-title">Infraestructura rápida, estable y privada</h2>
+        <ul class="check-list">
+          <li class="check-item">
+            <span class="check-icon">✓</span>
+            Autenticación segura mediante protocolo Xtream Codes y API REST
+          </li>
+          <li class="check-item">
+            <span class="check-icon">✓</span>
+            Streams adaptivos HLS (.m3u8) y MPEG-TS con buffer inteligente
+          </li>
+          <li class="check-item">
+            <span class="check-icon">✓</span>
+            Guía EPG en vivo con información del programa actual
+          </li>
+          <li class="check-item">
+            <span class="check-icon">✓</span>
+            Favoritos y progreso sincronizados en tu cuenta
+          </li>
+          <li class="check-item">
+            <span class="check-icon">✓</span>
+            Actualizaciones automáticas OTA desde el propio servidor
+          </li>
+          <li class="check-item">
+            <span class="check-icon">✓</span>
+            Compatible con Android 5.0+, tablets y Android TV / Smart TV
+          </li>
         </ul>
       </div>
     </div>
   </section>
 
-  <!-- Footer -->
+  <div class="divider"></div>
+
+  <!-- ══ DESCARGA ══ -->
+  <section id="descargar" class="download-section">
+    <div class="download-box">
+      <div class="download-badge">🚀 Disponible Ahora</div>
+      <h2 class="download-title">Descarga RukaTV gratis</h2>
+      <p class="download-desc">
+        APK oficial firmado por BFstudio Group. Compatible con Android 5.0 o superior. Sin suscripción de tienda — instala directamente desde GitHub Releases.
+      </p>
+      <div class="download-actions">
+        <a
+          href="https://github.com/inversionespmar-gif/rukaserver/releases/download/v1.0.0/app-release.apk"
+          class="btn-download"
+          id="btn-download-apk"
+        >
+          ⬇ Descargar APK v1.0.0
+        </a>
+        <a
+          href="https://github.com/inversionespmar-gif/rukaserver/releases"
+          target="_blank"
+          class="btn-secondary"
+        >
+          Ver todas las versiones ↗
+        </a>
+      </div>
+      <div class="version-tag">
+        📦 Versión 1.0.0 &nbsp;·&nbsp; Tamaño aprox. 80–120 MB &nbsp;·&nbsp; Android 5.0+
+      </div>
+
+      <!-- PASOS DE INSTALACIÓN -->
+      <div style="margin-top: 56px; text-align: left;">
+        <div class="section-label" style="text-align: center; margin-bottom: 28px;">Cómo instalar paso a paso</div>
+        <div class="install-steps">
+          <div class="step-card">
+            <div class="step-number">1</div>
+            <div class="step-title">Descarga el APK</div>
+            <div class="step-desc">Presiona el botón de descarga y guarda el archivo <code>app-release.apk</code> en tu teléfono.</div>
+          </div>
+          <div class="step-card">
+            <div class="step-number">2</div>
+            <div class="step-title">Permite fuentes desconocidas</div>
+            <div class="step-desc">Ve a <strong>Ajustes → Seguridad → Instalar apps desconocidas</strong> y actívalo para tu navegador o gestor de archivos.</div>
+          </div>
+          <div class="step-card">
+            <div class="step-number">3</div>
+            <div class="step-title">Instala el archivo</div>
+            <div class="step-desc">Abre el APK desde tu gestor de archivos o la notificación de descarga y presiona <strong>Instalar</strong>.</div>
+          </div>
+          <div class="step-card">
+            <div class="step-number">4</div>
+            <div class="step-title">Inicia sesión</div>
+            <div class="step-desc">Abre RukaTV, introduce la URL de tu servidor Rukaserver, usuario y contraseña. ¡Listo para ver!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ FOOTER ══ -->
   <footer>
-    <div class="footer-brand" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px;">
-      <img src="assets/logo.png" alt="RukaTV Official Logo" style="height: 36px;">
-      <span style="font-weight: 700; color: #ffffff; font-size: 1.2rem;">RukaTV</span>
+    <div class="footer-brand">
+      <img src="assets/logo.png" alt="RukaTV" class="footer-logo">
+      <span class="footer-brand-name">RukaTV</span>
     </div>
     <div class="footer-links">
       <span onclick="openModal('modal-terms')" class="footer-link">Términos y Condiciones</span>
-      <span onclick="openModal('modal-doc')" class="footer-link">Documentación del Servidor</span>
+      <span onclick="openModal('modal-doc')" class="footer-link">Documentación</span>
       <a href="#contenido" class="footer-link">Contenido</a>
+      <a href="#descargar" class="footer-link">Descargar</a>
+      <a href="https://github.com/inversionespmar-gif/rukaserver/releases" target="_blank" class="footer-link">GitHub Releases ↗</a>
     </div>
-    <p>© 2026 RukaTV & Rukaserver. Todos los derechos reservados.</p>
+    <p class="footer-copy">© 2026 BFstudio Group — RukaTV & Rukaserver. Todos los derechos reservados.</p>
   </footer>
 
-  <!-- Modal: Documentación Técnica -->
+  <!-- ══ MODAL: Documentación ══ -->
   <div id="modal-doc" class="modal-overlay">
     <div class="modal-content">
-      <button class="modal-close" onclick="closeModal('modal-doc')">&times;</button>
-      <h2 class="modal-title">Documentación de Rukaserver & RukaTV</h2>
+      <button class="modal-close" onclick="closeModal('modal-doc')">✕</button>
+      <h2 class="modal-title">Documentación del Servicio</h2>
       <div class="modal-body">
-        <h3>1. Descripción del Servicio</h3>
-        <p>RukaTV es la aplicación cliente oficial para acceder a los contenidos alojados en los servidores de Rukaserver. Ofrece acceso estructurado a Canales de TV en directo, películas VOD y series de televisión.</p>
-        
-        <h3>2. Especificaciones de Conexión</h3>
-        <p><strong>Protocolo de Servidor:</strong> Integración REST API / Xtream Codes con soporte de autenticación segura.</p>
-        <p><strong>Formatos de Transmisión:</strong> HLS (.m3u8), MPEG-TS (.ts) y Progressive Video en calidad adaptativa.</p>
-        <p><strong>Compatibilidad:</strong> Android 5.0 en adelante, optimizado para Android TV y decodificación por hardware.</p>
+        <h3>1. ¿Qué es RukaTV?</h3>
+        <p>RukaTV es la aplicación cliente oficial para conectarse al servidor <strong>Rukaserver</strong>. Permite acceder a Canales de TV en vivo, Películas y Series directamente desde el servidor en tiempo real.</p>
+
+        <h3>2. Protocolo de Conexión</h3>
+        <p><strong>Tipo:</strong> API REST compatible con Xtream Codes.<br>
+        <strong>Formatos de stream:</strong> HLS (.m3u8), MPEG-TS (.ts), Progressive MP4.<br>
+        <strong>Autenticación:</strong> Usuario y contraseña emitidos por el administrador del servidor.</p>
+
+        <h3>3. Requisitos del Sistema</h3>
+        <p><strong>Android:</strong> 5.0 (Lollipop) o superior.<br>
+        <strong>Dispositivos:</strong> Teléfonos, tablets, Android TV y Smart TV con Android.<br>
+        <strong>Conexión:</strong> Wi-Fi o datos móviles de al menos 4 Mbps para HD y 20 Mbps para 4K.</p>
+
+        <h3>4. Auto-Actualización (OTA)</h3>
+        <p>La aplicación verifica automáticamente si existe una versión más reciente en el servidor al iniciar sesión. Si hay una actualización disponible, mostrará un aviso para descargar e instalar directamente.</p>
+
+        <h3>5. Soporte</h3>
+        <p>Para soporte técnico o acceso al servidor, contacta al administrador de tu cuenta en <strong>Rukaserver</strong>.</p>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Términos y Condiciones -->
+  <!-- ══ MODAL: Términos ══ -->
   <div id="modal-terms" class="modal-overlay">
     <div class="modal-content">
-      <button class="modal-close" onclick="closeModal('modal-terms')">&times;</button>
-      <h2 class="modal-title">Términos y Condiciones del Servicio</h2>
+      <button class="modal-close" onclick="closeModal('modal-terms')">✕</button>
+      <h2 class="modal-title">Términos y Condiciones</h2>
       <div class="modal-body">
-        <h3>1. Aceptación del Servicio</h3>
-        <p>Al acceder a RukaTV, el usuario acepta utilizar el servicio conectado a Rukaserver únicamente para fines de entretenimiento personal.</p>
+        <h3>1. Aceptación de los Términos</h3>
+        <p>Al descargar e instalar RukaTV, el usuario acepta cumplir los presentes términos y condiciones de uso del servicio.</p>
 
-        <h3>2. Derechos de Contenido</h3>
-        <p>Las transmisiones de TV en vivo, películas y series son distribuidas mediante el servidor asignado. El usuario se compromete a respetar las políticas de uso aceptable del servidor.</p>
+        <h3>2. Uso del Servicio</h3>
+        <p>RukaTV es una aplicación cliente que se conecta al servidor Rukaserver. El usuario se compromete a utilizar el servicio exclusivamente para el consumo personal de contenido autorizado por el administrador del servidor.</p>
 
-        <h3>3. Privacidad y Seguridad</h3>
-        <p>Las credenciales de acceso y las preferencias de favoritos permanecen cifradas y protegidas para garantizar una navegación privada.</p>
+        <h3>3. Credenciales y Acceso</h3>
+        <p>El usuario es responsable de mantener la confidencialidad de sus credenciales de acceso. Las cuentas son personales e intransferibles.</p>
+
+        <h3>4. Actualizaciones</h3>
+        <p>BFstudio Group se reserva el derecho de lanzar actualizaciones de la aplicación en cualquier momento. Las actualizaciones críticas pueden aplicarse de forma obligatoria para garantizar la seguridad y el correcto funcionamiento del servicio.</p>
+
+        <h3>5. Limitación de Responsabilidad</h3>
+        <p>BFstudio Group no se hace responsable por interrupciones del servicio causadas por factores externos al control del servidor (cortes de internet, problemas de conectividad del usuario, etc.).</p>
+
+        <h3>6. Privacidad</h3>
+        <p>Los datos de sesión, favoritos y preferencias se almacenan de forma cifrada. No compartimos información personal con terceros.</p>
       </div>
     </div>
   </div>

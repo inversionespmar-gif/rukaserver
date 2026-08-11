@@ -1,0 +1,7 @@
+{
+  "versionCode": 1,
+  "versionName": "1.0.0",
+  "apkUrl": "https://github.com/inversionespmar-gif/rukaserver/releases/download/v1.0.0/app-release.apk",
+  "releaseNotes": "Reproductor sincronizado en tiempo real. Captura de pantalla nativa. Temporizador de apagado. Sistema de Auto-Actualizacion OTA. Favoritos y progreso guardados.",
+  "forceUpdate": false
+}
