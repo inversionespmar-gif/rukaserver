@@ -35,6 +35,8 @@ import com.rukatv.iptv.ui.theme.PlayerAccent
 @Composable
 fun PlayerControls(
     player: Player,
+    isPlaying: Boolean,
+    onTogglePlayPause: () -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier
@@ -59,14 +61,13 @@ fun PlayerControls(
             }
         )
 
-        val isPlaying = runCatching { player.isPlaying }.getOrDefault(false)
         Box(
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
                 .background(PlayerAccent)
                 .dpadFocus()
-                .clickable { player.playWhenReady = !player.playWhenReady },
+                .clickable { onTogglePlayPause() },
             contentAlignment = Alignment.Center
         ) {
             Icon(

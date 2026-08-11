@@ -6,7 +6,7 @@ import com.rukatv.iptv.data.remote.XtreamApi
 
 class CatalogRepository(
     private val api: XtreamApi,
-    private val creds: Credentials
+    val creds: Credentials
 ) {
     private val u get() = creds.username
     private val p get() = creds.password
@@ -14,6 +14,7 @@ class CatalogRepository(
     suspend fun liveCategories() = api.liveCategories(u, p)
     suspend fun liveStreams(categoryId: String? = null) = api.liveStreams(u, p, categoryId = categoryId)
     suspend fun vodStreams() = api.vodStreams(u, p)
+    suspend fun seriesCategories() = api.seriesCategories(u, p)
     suspend fun seriesList() = api.seriesList(u, p)
     suspend fun seriesInfo(seriesId: Long) = api.seriesInfo(u, p, seriesId = seriesId)
 

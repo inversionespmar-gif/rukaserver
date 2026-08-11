@@ -1,0 +1,8 @@
+{
+  "name": "Video Embed Link Converter",
+  "description": "Convert video embed pages (like vimeos.net and others) to direct M3U8 or MP4 links for ExoPlayer, VLC, and custom players.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

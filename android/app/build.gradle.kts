@@ -16,6 +16,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            isCrunchPngs = false
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -53,6 +54,7 @@ dependencies {
     val media3 = "1.3.1"
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-exoplayer-hls:$media3")
+    implementation("androidx.media3:media3-exoplayer-dash:$media3")
     implementation("androidx.media3:media3-ui:$media3")
     implementation("androidx.media3:media3-common:$media3")
     implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.3.1+1")

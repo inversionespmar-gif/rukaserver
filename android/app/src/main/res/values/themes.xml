@@ -4,4 +4,12 @@
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:colorBackground">@android:color/black</item>
     </style>
+
+    <style name="RukaPlayerController" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorAccent">@color/ruka_accent</item>
+        <item name="android:colorControlActivated">@color/ruka_accent</item>
+        <item name="android:colorPrimary">@color/ruka_accent</item>
+        <item name="android:colorControlHighlight">@color/ruka_accent</item>
+        <item name="android:colorForeground">@android:color/white</item>
+    </style>
 </resources>

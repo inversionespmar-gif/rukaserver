@@ -1,9 +1,23 @@
 package com.rukatv.iptv.ui.screens
 
 import android.app.Activity
+import android.app.PictureInPictureParams
+import android.content.ContentValues
+import android.content.Context
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Rect
+import android.os.Build
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
 import android.view.KeyEvent
+import android.view.PixelCopy
+import android.view.SurfaceView
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -37,6 +51,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,22 +73,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.drawToBitmap
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Tracks
+import androidx.media3.ui.PlayerView
 import com.rukatv.iptv.PlayItem
 import com.rukatv.iptv.data.local.PlaybackProgressStore
+import com.rukatv.iptv.player.SubtitleTrackInfo
 import com.rukatv.iptv.player.TvPlayer
-import com.rukatv.iptv.ui.components.player.PlayerOverlay
-import com.rukatv.iptv.ui.components.player.PlayerControls
-import com.rukatv.iptv.ui.components.player.PlayerProgressBar
-import com.rukatv.iptv.ui.components.player.ScreenshotButton
+import com.rukatv.iptv.player.VideoQualityInfo
 import com.rukatv.iptv.ui.components.player.FavoriteButton
+import com.rukatv.iptv.ui.components.player.MenuOption
 import com.rukatv.iptv.ui.components.player.PipButton
-import com.rukatv.iptv.ui.components.player.SleepTimerButton
-import com.rukatv.iptv.ui.components.player.SubtitleButton
-import com.rukatv.iptv.ui.components.player.SpeedButton
+import com.rukatv.iptv.ui.components.player.PlayerControls
+import com.rukatv.iptv.ui.components.player.PlayerOverlay
+import com.rukatv.iptv.ui.components.player.PlayerProgressBar
 import com.rukatv.iptv.ui.components.player.QualityButton
+import com.rukatv.iptv.ui.components.player.QualityMenu
+import com.rukatv.iptv.ui.components.player.ScreenshotButton
+import com.rukatv.iptv.ui.components.player.SleepTimerButton
+import com.rukatv.iptv.ui.components.player.SpeedButton
 import com.rukatv.iptv.ui.components.player.SpeedMenu
+import com.rukatv.iptv.ui.components.player.SubtitleButton
+import com.rukatv.iptv.ui.components.player.SubtitleMenu
 import com.rukatv.iptv.ui.theme.Accent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -100,6 +123,19 @@ fun PlayerScreen(
 
     var hasPlaybackError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Reactive playback states for UI synchronization
+    var isPlaying by remember { mutableStateOf(false) }
+    var currentPositionMs by remember { mutableLongStateOf(0L) }
+    var durationMs by remember { mutableLongStateOf(0L) }
+
+    var availableSubtitles by remember { mutableStateOf<List<SubtitleTrackInfo>>(emptyList()) }
+    var selectedSubtitleId by remember { mutableStateOf<String?>(null) }
+
+    var availableQualities by remember { mutableStateOf<List<VideoQualityInfo>>(emptyList()) }
+    var selectedQualityLabel by remember { mutableStateOf("HD") }
+
+    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
     // Keep latest values accessible from the player listener without re-registering.
     val currentIndex by rememberUpdatedState(index)
@@ -161,7 +197,7 @@ fun PlayerScreen(
     fun safeSaveProgress() {
         val playItem = queue.getOrNull(index) ?: return
         val currentPos = runCatching { player.player.currentPosition }.getOrDefault(0L)
-        val durationMs = runCatching { player.player.duration }.getOrDefault(0L).coerceAtLeast(0L)
+        val duration = runCatching { player.player.duration }.getOrDefault(0L).coerceAtLeast(0L)
         if (currentPos > 2000) {
             scope.launch {
                 runCatching {
@@ -171,14 +207,13 @@ fun PlayerScreen(
                         streamId = playItem.streamId,
                         title = playItem.title,
                         poster = playItem.poster,
-                        durationMs = durationMs,
+                        durationMs = duration,
                         isSeries = isSeries
                     )
                 }
             }
         }
     }
-
 
     // Force landscape for immersive playback + keep screen awake + release player on exit.
     DisposableEffect(Unit) {
@@ -226,12 +261,19 @@ fun PlayerScreen(
         }
     }
 
-    // Detect end of media & errors -> autoplay next (Netflix style) or error recovery.
-    // IMPORTANT: LaunchedEffect(Unit) runs once. We use rememberUpdatedState refs to always
-    // read the current index/queue/isSeries without re-registering the listener.
+    // Register Player Listener to observe play/pause, time, state, tracks in real-time
     DisposableEffect(Unit) {
         val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) {
+                isPlaying = playing
+            }
+
             override fun onPlaybackStateChanged(state: Int) {
+                if (state == Player.STATE_READY) {
+                    durationMs = runCatching { player.player.duration }.getOrDefault(0L).coerceAtLeast(0L)
+                    availableSubtitles = player.getSubtitleTracks()
+                    availableQualities = player.getVideoQualities()
+                }
                 if (state == Player.STATE_ENDED) {
                     val q = currentQueue
                     val idx = currentIndex
@@ -246,13 +288,20 @@ fun PlayerScreen(
                 }
             }
 
+            override fun onTracksChanged(tracks: Tracks) {
+                availableSubtitles = player.getSubtitleTracks()
+                availableQualities = player.getVideoQualities()
+                selectedSubtitleId = availableSubtitles.find { it.isSelected }?.id
+                val activeQuality = availableQualities.find { it.isSelected }
+                selectedQualityLabel = activeQuality?.label ?: "HD"
+            }
+
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                 if (!playWhenReady) {
                     safeSaveProgress()
                 }
             }
         }
-        // Only show the error UI when TvPlayer has exhausted all retries (fatal error)
         player.onFatalError = { error ->
             hasPlaybackError = true
             errorMessage = "Error de transmisión (${error.errorCodeName}). Revisa tu conexión a internet o intenta nuevamente."
@@ -263,6 +312,28 @@ fun PlayerScreen(
             player.onFatalError = null
         }
     }
+
+    // Continuous ticker loop to update current playback position in real-time
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            currentPositionMs = runCatching { player.player.currentPosition }.getOrDefault(0L).coerceAtLeast(0L)
+            val dur = runCatching { player.player.duration }.getOrDefault(0L)
+            if (dur > 0) durationMs = dur
+            delay(500)
+        }
+    }
+
+    // Sleep Timer auto-dismiss / exit handler
+    LaunchedEffect(sleepTimerMinutes) {
+        val mins = sleepTimerMinutes ?: return@LaunchedEffect
+        if (mins > 0) {
+            delay(mins * 60 * 1000L)
+            runCatching { player.player.pause() }
+            Toast.makeText(context, "Temporizador de apagado finalizado", Toast.LENGTH_LONG).show()
+            onExit()
+        }
+    }
+
 
     // Countdown for the "next episode" prompt.
     LaunchedEffect(showNextPrompt) {
@@ -378,7 +449,8 @@ fun PlayerScreen(
                     val pv = player.playerView(ctx) { visible ->
                         controlsVisible = visible
                     }
-                    
+                    playerViewRef = pv
+
                     // Touch listener to show/hide controls on tap
                     fl.setOnTouchListener { _, _ ->
                         if (controlsVisibleRef.value) {
@@ -389,14 +461,16 @@ fun PlayerScreen(
                         }
                         true
                     }
-                    
+
                     pv.setOnKeyListener { _, keyCode, event ->
                         if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
                         val ctrlVisible = controlsVisibleRef.value
                         when (keyCode) {
                             KeyEvent.KEYCODE_DPAD_CENTER -> {
                                 if (!ctrlVisible) {
-                                    runCatching { player.player.playWhenReady = !player.player.playWhenReady }
+                                    val nextState = !player.player.playWhenReady
+                                    runCatching { player.player.playWhenReady = nextState }
+                                    isPlaying = nextState
                                     showControls()
                                     hideControlsDelayed()
                                     true
@@ -406,6 +480,7 @@ fun PlayerScreen(
                                 if (!ctrlVisible) {
                                     val pos = runCatching { player.player.currentPosition }.getOrDefault(0L)
                                     player.seekTo((pos - 10000).coerceAtLeast(0L))
+                                    currentPositionMs = (pos - 10000).coerceAtLeast(0L)
                                     showControls()
                                     hideControlsDelayed()
                                     true
@@ -415,6 +490,7 @@ fun PlayerScreen(
                                 if (!ctrlVisible) {
                                     val pos = runCatching { player.player.currentPosition }.getOrDefault(0L)
                                     player.seekTo(pos + 10000)
+                                    currentPositionMs = pos + 10000
                                     showControls()
                                     hideControlsDelayed()
                                     true
@@ -423,7 +499,9 @@ fun PlayerScreen(
                             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
                             KeyEvent.KEYCODE_MEDIA_PLAY,
                             KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                                runCatching { player.player.playWhenReady = !player.player.playWhenReady }
+                                val nextState = !player.player.playWhenReady
+                                runCatching { player.player.playWhenReady = nextState }
+                                isPlaying = nextState
                                 showControls()
                                 hideControlsDelayed()
                                 true
@@ -472,7 +550,7 @@ fun PlayerScreen(
             },
             topActions = {
                 ScreenshotButton(onScreenshot = {
-                    // TODO: Implement screenshot capture
+                    playerViewRef?.let { capturePlayerFrame(context, it) }
                     showControls()
                     hideControlsDelayed()
                 })
@@ -491,9 +569,12 @@ fun PlayerScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     PlayerProgressBar(
-                        currentPositionMs = runCatching { player.player.currentPosition }.getOrDefault(0L),
-                        durationMs = runCatching { player.player.duration }.getOrDefault(0L),
-                        onSeek = { player.seekTo(it) }
+                        currentPositionMs = currentPositionMs,
+                        durationMs = durationMs,
+                        onSeek = { pos ->
+                            player.seekTo(pos)
+                            currentPositionMs = pos
+                        }
                     )
 
                     Row(
@@ -505,18 +586,27 @@ fun PlayerScreen(
                     ) {
                         PlayerControls(
                             player = player.player,
+                            isPlaying = isPlaying,
+                            onTogglePlayPause = {
+                                val nextState = !player.player.playWhenReady
+                                runCatching { player.player.playWhenReady = nextState }
+                                isPlaying = nextState
+                            },
                             onPrev = { prevEpisode() },
                             onNext = { nextEpisode() },
                             modifier = Modifier.weight(1f)
                         )
 
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            SubtitleButton(onClick = {
-                                showSubtitleMenu = !showSubtitleMenu
-                                showSpeedMenu = false
-                                showQualityMenu = false
-                                showControls()
-                            })
+                            SubtitleButton(
+                                onClick = {
+                                    showSubtitleMenu = !showSubtitleMenu
+                                    showSpeedMenu = false
+                                    showQualityMenu = false
+                                    showControls()
+                                },
+                                isActive = selectedSubtitleId != null
+                            )
                             SpeedButton(
                                 currentSpeed = currentSpeed,
                                 onClick = {
@@ -526,14 +616,17 @@ fun PlayerScreen(
                                     showControls()
                                 }
                             )
-                            QualityButton(onClick = {
-                                showQualityMenu = !showQualityMenu
-                                showSubtitleMenu = false
-                                showSpeedMenu = false
-                                showControls()
-                            })
+                            QualityButton(
+                                onClick = {
+                                    showQualityMenu = !showQualityMenu
+                                    showSubtitleMenu = false
+                                    showSpeedMenu = false
+                                    showControls()
+                                },
+                                quality = selectedQualityLabel
+                            )
                             PipButton(onPipRequested = {
-                                // TODO: Implement PiP
+                                triggerPip(context)
                                 showControls()
                                 hideControlsDelayed()
                             })
@@ -544,32 +637,87 @@ fun PlayerScreen(
                                     showControls()
                                     hideControlsDelayed()
                                 }
-                            )
+                                )
                         }
                     }
                 }
             }
         )
 
-        // Speed Menu
-        SpeedMenu(
-            visible = showSpeedMenu,
-            currentSpeed = currentSpeed,
-            onSpeedSelected = { speed ->
-                currentSpeed = speed
-                runCatching {
-                    player.player.setPlaybackSpeed(speed)
-                }
-                showSpeedMenu = false
-                showControls()
-                hideControlsDelayed()
-            },
-            onDismiss = {
-                showSpeedMenu = false
-                showControls()
-                hideControlsDelayed()
+        // Subtitle, Quality & Speed Dropdown Menus
+        val subtitleMenuOptions = remember(availableSubtitles, selectedSubtitleId) {
+            val list = mutableListOf(
+                MenuOption("OFF", "Desactivado", selectedSubtitleId == null)
+            )
+            availableSubtitles.forEach { sub ->
+                list.add(MenuOption(sub.id, sub.label, sub.id == selectedSubtitleId))
             }
-        )
+            list
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 90.dp, end = 24.dp)
+        ) {
+            SubtitleMenu(
+                visible = showSubtitleMenu,
+                tracks = subtitleMenuOptions,
+                onTrackSelected = { selectedId ->
+                    if (selectedId == "OFF") {
+                        player.selectSubtitleTrack(null)
+                        selectedSubtitleId = null
+                    } else {
+                        val track = availableSubtitles.find { it.id == selectedId }
+                        player.selectSubtitleTrack(track)
+                        selectedSubtitleId = selectedId
+                    }
+                    showSubtitleMenu = false
+                    showControls()
+                    hideControlsDelayed()
+                },
+                onDismiss = {
+                    showSubtitleMenu = false
+                    showControls()
+                    hideControlsDelayed()
+                }
+            )
+
+            QualityMenu(
+                visible = showQualityMenu,
+                currentQuality = selectedQualityLabel,
+                qualities = listOf("AUTO") + availableQualities.map { it.label }.distinct(),
+                onQualitySelected = { qLabel ->
+                    player.selectVideoQuality(qLabel)
+                    selectedQualityLabel = if (qLabel == "AUTO") "HD" else qLabel
+                    showQualityMenu = false
+                    showControls()
+                    hideControlsDelayed()
+                },
+                onDismiss = {
+                    showQualityMenu = false
+                    showControls()
+                    hideControlsDelayed()
+                }
+            )
+
+            SpeedMenu(
+                visible = showSpeedMenu,
+                currentSpeed = currentSpeed,
+                onSpeedSelected = { speed ->
+                    currentSpeed = speed
+                    runCatching { player.player.setPlaybackSpeed(speed) }
+                    showSpeedMenu = false
+                    showControls()
+                    hideControlsDelayed()
+                },
+                onDismiss = {
+                    showSpeedMenu = false
+                    showControls()
+                    hideControlsDelayed()
+                }
+            )
+        }
 
         // Error Screen Overlay (If stream fails/disconnects)
         if (hasPlaybackError) {
@@ -898,3 +1046,90 @@ fun PlayerScreen(
         }
     }
 }
+
+private fun triggerPip(context: Context) {
+    val activity = context as? Activity ?: return
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val hasPip = context.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+        if (hasPip) {
+            runCatching {
+                val params = PictureInPictureParams.Builder().build()
+                activity.enterPictureInPictureMode(params)
+            }.onFailure {
+                Toast.makeText(context, "Error al activar modo PiP", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Modo PiP no soportado en este dispositivo", Toast.LENGTH_SHORT).show()
+        }
+    } else {
+        Toast.makeText(context, "Modo PiP requiere Android 8.0 o superior", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun capturePlayerFrame(context: Context, playerView: PlayerView) {
+    val activity = context as? Activity ?: return
+    val surfaceView = playerView.videoSurfaceView
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && surfaceView is SurfaceView && surfaceView.holder.surface.isValid) {
+        val bitmap = Bitmap.createBitmap(surfaceView.width, surfaceView.height, Bitmap.Config.ARGB_8888)
+        val locationOfViewInWindow = IntArray(2)
+        surfaceView.getLocationInWindow(locationOfViewInWindow)
+        val rect = Rect(
+            locationOfViewInWindow[0],
+            locationOfViewInWindow[1],
+            locationOfViewInWindow[0] + surfaceView.width,
+            locationOfViewInWindow[1] + surfaceView.height
+        )
+        PixelCopy.request(surfaceView, rect, bitmap, { copyResult ->
+            if (copyResult == PixelCopy.SUCCESS) {
+                saveBitmapToGallery(context, bitmap)
+            } else {
+                activity.runOnUiThread {
+                    Toast.makeText(context, "No se pudo realizar la captura de pantalla", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }, Handler(Looper.getMainLooper()))
+    } else {
+        runCatching {
+            val bitmap = playerView.drawToBitmap()
+            saveBitmapToGallery(context, bitmap)
+        }.onFailure {
+            Toast.makeText(context, "No se pudo guardar la captura de pantalla", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+private fun saveBitmapToGallery(context: Context, bitmap: Bitmap) {
+    val filename = "RukaTv_${System.currentTimeMillis()}.jpg"
+    val activity = context as? Activity
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/RukaTV")
+            }
+            val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            if (uri != null) {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
+                }
+            }
+        } else {
+            val imagesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString() + "/RukaTV"
+            val file = java.io.File(imagesDir)
+            if (!file.exists()) file.mkdirs()
+            val imageFile = java.io.File(imagesDir, filename)
+            java.io.FileOutputStream(imageFile).use { stream ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
+            }
+        }
+        activity?.runOnUiThread {
+            Toast.makeText(context, "Captura de pantalla guardada en Imágenes", Toast.LENGTH_LONG).show()
+        }
+    } catch (e: Exception) {
+        activity?.runOnUiThread {
+            Toast.makeText(context, "Error al guardar captura: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+

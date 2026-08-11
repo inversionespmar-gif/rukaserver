@@ -27,6 +27,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
 import com.rukatv.iptv.ui.theme.Accent
 import com.rukatv.iptv.ui.theme.Surface
 
@@ -108,11 +111,13 @@ fun ChannelRow(
 
         // Play arrow when focused
         if (focused) {
-            Text(
-                text = "▶",
-                color = Accent,
-                fontSize = 11.sp,
-                modifier = Modifier.padding(start = 8.dp)
+            Icon(
+                imageVector = Icons.Filled.PlayArrow,
+                contentDescription = "Reproducir",
+                tint = Accent,
+                modifier = Modifier
+                    .size(11.dp)
+                    .padding(start = 8.dp)
             )
         }
     }

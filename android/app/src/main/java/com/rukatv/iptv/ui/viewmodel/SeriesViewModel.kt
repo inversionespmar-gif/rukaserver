@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rukatv.iptv.data.remote.dto.SeriesItem
 import com.rukatv.iptv.data.repository.CatalogRepository
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -11,15 +12,22 @@ import kotlinx.coroutines.launch
 data class SeriesCategoryRow(
     val title: String,
     val items: List<SeriesItem>,
-    val showAll: Boolean = false
+    val showAll: Boolean = false,
+    val totalCount: Int = 0
 )
 
 data class SeriesUiState(
     val loading: Boolean = true,
     val error: String? = null,
     val allSeries: List<SeriesItem> = emptyList(),
+    val featuredSeries: List<SeriesItem> = emptyList(),
     val rows: List<SeriesCategoryRow> = emptyList(),
-    val expandedCategory: String? = null
+    val selectedGenre: String = "Todo",
+    val genresList: List<String> = listOf("Todo"),
+    // Map from categoryId -> categoryName
+    val categoryMap: Map<String, String> = emptyMap(),
+    // Category navigation: null = category list, non-null = detail screen
+    val selectedCategory: String? = null
 )
 
 class SeriesViewModel(private val catalog: CatalogRepository) : ViewModel() {
@@ -31,78 +39,129 @@ class SeriesViewModel(private val catalog: CatalogRepository) : ViewModel() {
     fun load() {
         _state.value = _state.value.copy(loading = true, error = null)
         viewModelScope.launch {
-            runCatching { catalog.seriesList() }
-                .onSuccess { series ->
-                    _state.value = _state.value.copy(loading = false, allSeries = series)
-                    buildRows(series)
-                }
-                .onFailure { e -> _state.value = _state.value.copy(loading = false, error = e.message) }
+            runCatching {
+                // Load categories and series in parallel
+                val categoriesDeferred = async { catalog.seriesCategories() }
+                val seriesDeferred = async { catalog.seriesList() }
+
+                val categories = runCatching { categoriesDeferred.await() }.getOrElse { emptyList() }
+                val series = seriesDeferred.await()
+
+                val categoryMap = categories.associate { it.categoryId to it.categoryName }
+
+                val featured = series.filter { it.rating.toDoubleOrNull() ?: 0.0 > 7.5 }
+                    .take(5)
+                    .ifEmpty { series.take(5) }
+
+                // Build genre list from categories for filter chips
+                val genresList = mutableListOf("Todo")
+                genresList.addAll(categories.map { it.categoryName }.filter { it.isNotBlank() })
+
+                _state.value = _state.value.copy(
+                    loading = false,
+                    allSeries = series,
+                    featuredSeries = featured,
+                    categoryMap = categoryMap,
+                    genresList = genresList
+                )
+                buildRows(series, categoryMap)
+            }.onFailure { e ->
+                _state.value = _state.value.copy(loading = false, error = e.message)
+            }
         }
     }
 
-    fun toggleCategory(title: String) {
-        val current = _state.value.expandedCategory
-        _state.value = _state.value.copy(expandedCategory = if (current == title) null else title)
-        buildRows(_state.value.allSeries)
+    fun setGenre(genre: String) {
+        _state.value = _state.value.copy(selectedGenre = genre, selectedCategory = null)
+        buildRows(_state.value.allSeries, _state.value.categoryMap)
     }
 
-    private fun buildRows(series: List<SeriesItem>) {
-        val expanded = _state.value.expandedCategory
+    fun navigateToCategory(title: String) {
+        _state.value = _state.value.copy(selectedCategory = title)
+    }
+
+    fun clearSelectedCategory() {
+        _state.value = _state.value.copy(selectedCategory = null)
+    }
+
+    private fun buildRows(series: List<SeriesItem>, categoryMap: Map<String, String>) {
+        val selectedGenre = _state.value.selectedGenre
         val rows = mutableListOf<SeriesCategoryRow>()
 
-        // Estrenos 2026
-        val estrenos2026 = series.filter { it.releaseDate.startsWith("2026") }
-            .sortedByDescending { it.releaseDate }
-        if (estrenos2026.isNotEmpty()) {
-            val showAll = expanded == "Estrenos 2026"
-            rows.add(SeriesCategoryRow("Estrenos 2026", if (showAll) estrenos2026 else estrenos2026.take(10), showAll))
-        }
-
-        // TMDB genre IDs for series
-        val genres = listOf(
-            10759 to "Acción",
-            35 to "Comedia",
-            18 to "Drama",
-            10765 to "Ciencia Ficción",
-            10768 to "War & Politics",
-            9648 to "Misterio",
-            10762 to "Kids",
-            16 to "Animación"
-        )
-
-        for ((genreId, genreName) in genres) {
-            val filtered = series.filter { it.genreIds.contains(genreId) }
-                .sortedByDescending { it.releaseDate }
-            if (filtered.isNotEmpty()) {
-                val showAll = expanded == genreName
-                rows.add(SeriesCategoryRow(genreName, if (showAll) filtered else filtered.take(10), showAll))
+        // Filter by selected genre
+        val filteredSeries = if (selectedGenre == "Todo") {
+            series
+        } else {
+            // Find categoryId that matches the genre name
+            val targetCatId = categoryMap.entries
+                .firstOrNull { it.value.equals(selectedGenre, ignoreCase = true) }
+                ?.key
+            if (targetCatId != null) {
+                series.filter { it.categoryId == targetCatId }
+            } else {
+                // Fallback: filter by name containing genre
+                series.filter { s ->
+                    s.categoryName.contains(selectedGenre, ignoreCase = true) ||
+                    s.name.contains(selectedGenre, ignoreCase = true)
+                }
             }
         }
 
-        // Anime: genre 16 (Animation) - filtered by name containing common anime indicators
-        val animeKeywords = listOf("anime", "no hay", "one piece", "naruto", "dragon ball", "attack on titan",
-            "demon slayer", "jujutsu kaisen", "my hero", "sword art", "death note", "fullmetal",
-            "bleach", "hunter x hunter", "one punch", "chainsaw man", "spy x family")
-        val anime = series.filter { s ->
-            s.genreIds.contains(16) || animeKeywords.any { s.name.lowercase().contains(it) }
-        }.sortedByDescending { it.releaseDate }
-        if (anime.isNotEmpty()) {
-            val showAll = expanded == "Anime"
-            rows.add(SeriesCategoryRow("Anime", if (showAll) anime else anime.take(10), showAll))
+        if (selectedGenre != "Todo") {
+            // Single expanded category for filtered view
+            val sorted = filteredSeries.sortedByDescending { it.releaseDate }
+            if (sorted.isNotEmpty()) {
+                rows.add(SeriesCategoryRow(selectedGenre, sorted, showAll = true, totalCount = sorted.size))
+            }
+            _state.value = _state.value.copy(rows = rows)
+            return
         }
 
-        // K-Drama: series with Korean-sounding names or from Korean networks
-        val koreanIndicators = listOf("k-drama", "kdrama", "korean", "coreano", "korea",
-            "kdrama", "k show", "kdrama")
-        val kDrama = series.filter { s ->
-            val name = s.name.lowercase()
-            koreanIndicators.any { name.contains(it) } ||
-            // Check for Korean characters (Hangul range)
-            s.name.any { it.code in 0xAC00..0xD7AF || it.code in 0x1100..0x11FF || it.code in 0x3130..0x318F }
-        }.sortedByDescending { it.releaseDate }
-        if (kDrama.isNotEmpty()) {
-            val showAll = expanded == "K-Drama"
-            rows.add(SeriesCategoryRow("K-Drama", if (showAll) kDrama else kDrama.take(10), showAll))
+        // "Todo" mode: group by server category using categoryId
+        // First add "Estrenos 2026" special row
+        val estrenos = series
+            .filter { it.releaseDate.startsWith("2026") }
+            .sortedByDescending { it.releaseDate }
+        if (estrenos.isNotEmpty()) {
+            rows.add(SeriesCategoryRow(
+                "Estrenos 2026",
+                estrenos.take(10),
+                showAll = false,
+                estrenos.size
+            ))
+        }
+
+        // Group by categoryId from server
+        if (categoryMap.isNotEmpty()) {
+            // Use the category order from categoryMap
+            for ((catId, catName) in categoryMap) {
+                if (catName.isBlank()) continue
+                val catSeries = series
+                    .filter { it.categoryId == catId }
+                    .sortedByDescending { it.releaseDate }
+                if (catSeries.isNotEmpty()) {
+                    rows.add(SeriesCategoryRow(
+                        catName,
+                        catSeries.take(10),
+                        showAll = false,
+                        catSeries.size
+                    ))
+                }
+            }
+        } else {
+            // Fallback if categories API failed: group by categoryName field in series
+            val grouped = series
+                .groupBy { it.categoryName.ifBlank { "General" } }
+                .toSortedMap()
+            for ((catName, catSeries) in grouped) {
+                val sorted = catSeries.sortedByDescending { it.releaseDate }
+                rows.add(SeriesCategoryRow(
+                    catName,
+                    sorted.take(10),
+                    showAll = false,
+                    sorted.size
+                ))
+            }
         }
 
         _state.value = _state.value.copy(rows = rows)

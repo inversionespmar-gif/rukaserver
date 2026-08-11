@@ -1,6 +1,8 @@
 package com.rukatv.iptv.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,15 +18,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -32,10 +46,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -67,6 +83,36 @@ fun SeriesScreen(
     if (state.error != null) return ErrorState(state.error!!) { vm.load() }
 
     var selected by remember { mutableStateOf<SeriesItem?>(null) }
+    // Use the ViewModel's selectedCategory state for navigation (fixes "Ver más" button)
+    val selectedCategory = state.selectedCategory
+    if (selectedCategory != null) {
+        // Pass ALL series for this category (not just the 10 preview items)
+        val allSeriesInCategory = if (selectedCategory == "Estrenos 2026") {
+            state.allSeries.filter { it.releaseDate.startsWith("2026") }
+                .sortedByDescending { it.releaseDate }
+        } else {
+            val catId = state.categoryMap.entries
+                .firstOrNull { it.value == selectedCategory }?.key
+            if (catId != null) {
+                state.allSeries.filter { it.categoryId == catId }
+                    .sortedByDescending { it.releaseDate }
+            } else {
+                state.allSeries.filter { it.categoryName == selectedCategory }
+                    .sortedByDescending { it.releaseDate }
+            }
+        }
+        CategoryDetailScreen(
+            title = selectedCategory,
+            allSeriesInCategory = allSeriesInCategory,
+            catalog = catalog,
+            favorites = favorites,
+            onBack = { vm.clearSelectedCategory() },
+            onPlay = onPlay,
+            onPlayQueue = onPlayQueue
+        )
+        return
+    }
+
     if (selected != null) {
         SeriesDetail(
             series = selected!!,
@@ -86,15 +132,333 @@ fun SeriesScreen(
             .padding(top = 14.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
+        // Hero Carousel for featured series
+        if (state.featuredSeries.isNotEmpty()) {
+            item {
+                Box(modifier = Modifier.padding(horizontal = 14.dp).padding(top = 6.dp)) {
+                    SeriesHeroCarousel(
+                        featuredSeries = state.featuredSeries,
+                        onPlay = { series -> selected = series },
+                        onDetails = { series -> selected = series }
+                    )
+                }
+            }
+        }
+
+        // Genre filter chips
+        item {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(state.genresList) { genre ->
+                    val isSelected = state.selectedGenre == genre
+                    SeriesGenreChip(
+                        text = genre,
+                        isSelected = isSelected,
+                        onClick = { vm.setGenre(genre) }
+                    )
+                }
+            }
+        }
+
+        // Category rows
         items(state.rows) { row ->
             SeriesCategoryRowSection(
                 row = row,
                 onSeriesClick = { selected = it },
-                onShowMore = { vm.toggleCategory(row.title) }
+                onShowMore = { vm.navigateToCategory(row.title) }
             )
         }
+        // Also handle "Ver menos" within a category row (toggle)
+
         // Bottom padding
         item { Box(modifier = Modifier.height(24.dp)) }
+    }
+}
+
+@Composable
+private fun SeriesGenreChip(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused = interaction.collectIsFocusedAsState().value
+
+    val bgColor = when {
+        isSelected -> Accent
+        focused -> Color(0xFF2D3748)
+        else -> Color(0xFF1A202C)
+    }
+
+    val textColor = when {
+        isSelected -> Color(0xFF041E19)
+        else -> Color.White
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(bgColor)
+            .border(
+                width = if (focused) 2.dp else if (isSelected) 0.dp else 1.dp,
+                color = if (focused) Accent else Color(0x33FFFFFF),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .focusable(interactionSource = interaction)
+            .clickable(interactionSource = interaction, indication = null) { onClick() }
+            .padding(horizontal = 14.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = text,
+            color = textColor,
+            fontSize = 12.5.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun SeriesHeroCarousel(
+    featuredSeries: List<SeriesItem>,
+    modifier: Modifier = Modifier,
+    onPlay: (SeriesItem) -> Unit,
+    onDetails: (SeriesItem) -> Unit
+) {
+    if (featuredSeries.isEmpty()) return
+
+    var currentIndex by remember { mutableIntStateOf(0) }
+
+    val currentSeries = featuredSeries[currentIndex]
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(310.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFF0F1519))
+    ) {
+        // Crossfade animation for backdrop change
+        Crossfade(
+            targetState = currentSeries,
+            animationSpec = tween(600),
+            label = "seriesHeroCrossfade"
+        ) { series ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                val imageUrl = if (series.poster.isNotBlank()) series.poster else series.cover
+                if (imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = series.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1E262B)))
+                }
+
+                // Smooth Gradient Overlays
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color(0x33000000),
+                                    0.4f to Color(0x66000000),
+                                    0.75f to Color(0xDD0B0F12),
+                                    1.0f to Color(0xFF0B0F12)
+                                )
+                            )
+                        )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color(0xCC0B0F12),
+                                    0.5f to Color(0x660B0F12),
+                                    1.0f to Color.Transparent
+                                )
+                            )
+                        )
+                )
+            }
+        }
+
+        // Hero Content Info
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth(0.82f)
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Badges row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (currentSeries.releaseDate.startsWith("2026")) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Accent)
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            "ESTRENO",
+                            color = Color(0xFF041E19),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+
+                Text(
+                    text = "${currentSeries.year}  •  ${currentSeries.seasonsCount} temporadas",
+                    color = Color(0xFFCBD5E0),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            // Title
+            Text(
+                text = currentSeries.name,
+                color = Color.White,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Rating & Plot
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Star,
+                    contentDescription = "Valoración",
+                    tint = Color(0xFFFFC107),
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = currentSeries.displayRating,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "  ${currentSeries.plot.ifBlank { "Una serie imperdible disponible en HD y 4K." }}",
+                    color = Color(0xFFA0AEC0),
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+
+            // Action Buttons Row
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                HeroButton(
+                    text = "Ver ahora",
+                    icon = Icons.Filled.PlayArrow,
+                    isPrimary = true,
+                    onClick = { onPlay(currentSeries) }
+                )
+
+                HeroButton(
+                    text = "Más info",
+                    icon = Icons.Filled.Info,
+                    isPrimary = false,
+                    onClick = { onDetails(currentSeries) }
+                )
+            }
+        }
+
+        // Carousel Indicators (Dots)
+        if (featuredSeries.size > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                featuredSeries.indices.forEach { index ->
+                    val isSelected = index == currentIndex
+                    Box(
+                        modifier = Modifier
+                            .size(if (isSelected) 10.dp else 7.dp)
+                            .clip(CircleShape)
+                            .background(if (isSelected) Accent else Color(0x66FFFFFF))
+                            .clickable { currentIndex = index }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroButton(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isPrimary: Boolean,
+    onClick: () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused = interaction.collectIsFocusedAsState().value
+
+    val bgColor = when {
+        focused -> Accent
+        isPrimary -> Color.White
+        else -> Color(0x44334155)
+    }
+    val tintColor = when {
+        focused -> Color(0xFF041E19)
+        isPrimary -> Color(0xFF0F172A)
+        else -> Color.White
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bgColor)
+            .border(
+                width = if (focused) 2.dp else 1.dp,
+                color = if (focused) Accent else Color(0x33FFFFFF),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .shadow(if (focused) 8.dp else 0.dp)
+            .focusable(interactionSource = interaction)
+            .clickable(interactionSource = interaction, indication = null) { onClick() }
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = text,
+                tint = tintColor,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(text, color = tintColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
@@ -104,6 +468,9 @@ private fun SeriesCategoryRowSection(
     onSeriesClick: (SeriesItem) -> Unit,
     onShowMore: () -> Unit
 ) {
+    val showMoreInteraction = remember { MutableInteractionSource() }
+    val showMoreFocused = showMoreInteraction.collectIsFocusedAsState().value
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // Category header
         Row(
@@ -119,13 +486,24 @@ private fun SeriesCategoryRowSection(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
-            if (row.items.size > 10 || !row.showAll) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (showMoreFocused) Accent.copy(alpha = 0.2f) else Color.Transparent)
+                    .border(
+                        width = if (showMoreFocused) 1.dp else 0.dp,
+                        color = if (showMoreFocused) Accent else Color.Transparent,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .focusable(interactionSource = showMoreInteraction)
+                    .clickable(interactionSource = showMoreInteraction, indication = null) { onShowMore() }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
                 Text(
-                    text = if (row.showAll) "Ver menos" else "Ver más",
-                    color = Accent,
+                    text = if (row.showAll) "Ver menos" else if (row.totalCount > 0) "Ver más (${row.totalCount})" else "Ver más",
+                    color = if (showMoreFocused) Color.White else Accent,
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.clickable { onShowMore() }
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -147,7 +525,7 @@ private fun SeriesCategoryRowSection(
 }
 
 @Composable
-private fun SeriesDetail(
+internal fun SeriesDetail(
     series: SeriesItem,
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
@@ -161,6 +539,7 @@ private fun SeriesDetail(
     var info by remember { mutableStateOf<com.rukatv.iptv.data.remote.dto.SeriesInfo?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
+    var selectedSeason by remember { mutableIntStateOf(1) }
 
     BackHandler { onBack() }
 
@@ -173,7 +552,14 @@ private fun SeriesDetail(
     if (error != null) return ErrorState(error!!) {}
     val data = info ?: return
 
-    // Flat ordered playlist across all seasons for autoplay-next (Netflix style).
+    // Set initial season to first available
+    LaunchedEffect(data.seasons) {
+        if (data.seasons.isNotEmpty() && selectedSeason > data.seasons.size) {
+            selectedSeason = data.seasons.firstOrNull()?.seasonNumber ?: 1
+        }
+    }
+
+    // Flat ordered playlist across all seasons for autoplay-next
     val playlist = remember(data) {
         data.seasons.flatMap { season ->
             (data.episodes[season.seasonNumber.toString()] ?: emptyList()).map { ep ->
@@ -188,6 +574,9 @@ private fun SeriesDetail(
         playlist.indexOfFirst { it.url == catalog.seriesUrl(streamId) }.coerceAtLeast(0)
     }
     val isFav = favSet.contains(favId)
+
+    // Current season episodes
+    val currentEpisodes = data.episodes[selectedSeason.toString()] ?: emptyList()
 
     LazyColumn(modifier = Modifier.fillMaxSize().background(Background)) {
         // Hero banner
@@ -231,7 +620,12 @@ private fun SeriesDetail(
                         .clickable { onBack() }
                         .padding(10.dp)
                 ) {
-                    Text("←", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
                 // Title + action buttons at bottom of hero
                 Column(
@@ -260,7 +654,12 @@ private fun SeriesDetail(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("▶", color = Color(0xFF06231F), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Icon(
+                                        imageVector = Icons.Filled.PlayArrow,
+                                        contentDescription = "Reproducir",
+                                        tint = Color(0xFF06231F),
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                     Text("Reproducir", color = Color(0xFF06231F), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
@@ -278,22 +677,50 @@ private fun SeriesDetail(
                                 .clickable { scope.launch { favorites.toggle(favId) } }
                                 .padding(horizontal = 16.dp, vertical = 9.dp)
                         ) {
-                            Text(
-                                text = if (isFav) "★ Favorito" else "☆ Favorito",
-                                color = if (isFav) Accent else Color(0xFF888888),
-                                fontSize = 13.sp
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                    contentDescription = "Favorito",
+                                    tint = if (isFav) Accent else Color(0xFF888888),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "Favorito",
+                                    color = if (isFav) Accent else Color(0xFF888888),
+                                    fontSize = 13.sp
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Episodes by season
-        data.seasons.forEach { season ->
+        // Season selector (horizontal chips)
+        if (data.seasons.size > 1) {
+            item {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    itemsIndexed(data.seasons) { index, season ->
+                        val isSelected = selectedSeason == season.seasonNumber
+                        SeasonChip(
+                            text = "Temporada ${season.seasonNumber}",
+                            isSelected = isSelected,
+                            onClick = { selectedSeason = season.seasonNumber }
+                        )
+                    }
+                }
+            }
+        } else if (data.seasons.isNotEmpty()) {
             item {
                 Text(
-                    text = "Temporada ${season.seasonNumber}",
+                    text = "Temporada ${data.seasons.first().seasonNumber}",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -302,18 +729,56 @@ private fun SeriesDetail(
                         .padding(top = 20.dp, bottom = 8.dp)
                 )
             }
-            val episodes = data.episodes[season.seasonNumber.toString()] ?: emptyList()
-            items(episodes) { ep ->
-                EpisodeRow(
-                    episodeNum = ep.episodeNum,
-                    title = ep.title,
-                    onClick = { onPlayQueue(playlist, indexOf(ep.streamId)) }
-                )
-            }
+        }
+
+        // Episodes for selected season
+        items(currentEpisodes) { ep ->
+            EpisodeRow(
+                episodeNum = ep.episodeNum,
+                title = ep.title,
+                onClick = { onPlayQueue(playlist, indexOf(ep.streamId)) }
+            )
         }
 
         // Bottom spacing
         item { Box(Modifier.height(36.dp)) }
+    }
+}
+
+@Composable
+private fun SeasonChip(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused = interaction.collectIsFocusedAsState().value
+
+    val bgColor = when {
+        isSelected -> Accent
+        focused -> Color(0xFF2D3748)
+        else -> Color(0xFF1A202C)
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(bgColor)
+            .border(
+                width = if (focused) 2.dp else if (isSelected) 0.dp else 1.dp,
+                color = if (focused) Accent else Color(0x33FFFFFF),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .focusable(interactionSource = interaction)
+            .clickable(interactionSource = interaction, indication = null) { onClick() }
+            .padding(horizontal = 14.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (isSelected) Color(0xFF041E19) else Color.White,
+            fontSize = 13.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+        )
     }
 }
 
@@ -360,10 +825,11 @@ private fun EpisodeRow(
             modifier = Modifier.weight(1f)
         )
         // Play icon
-        Text(
-            text = "▶",
-            color = if (focused) Accent else Color(0xFF3A4050),
-            fontSize = 11.sp
+        Icon(
+            imageVector = Icons.Filled.PlayArrow,
+            contentDescription = "Reproducir",
+            tint = if (focused) Accent else Color(0xFF3A4050),
+            modifier = Modifier.size(16.dp)
         )
     }
 }

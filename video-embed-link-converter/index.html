@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+    <script>
+      // Sandboxed environments like the AI Studio iframe sometimes configure window.fetch 
+      // as a read-only getter, which causes any polyfill (like formdata-polyfill or node-fetch)
+      // that attempts to write or wrap globalThis.fetch to crash with:
+      // "TypeError: Cannot set property fetch of #<Window> which has only a getter".
+      // We patch it here at the earliest possible stage to make it writable.
+      (function() {
+        try {
+          var originalFetch = window.fetch;
+          var currentFetch = originalFetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return currentFetch;
+            },
+            set: function(val) {
+              currentFetch = val;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          console.warn("Could not redefine window.fetch setter:", e);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

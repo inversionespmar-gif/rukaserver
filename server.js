@@ -3,6 +3,7 @@ import { loadConfig } from "./src/config.js";
 import { createApp } from "./src/app.js";
 import { registerXtreamRoutes } from "./src/xtream.js";
 import { registerStreamRoutes } from "./src/stream.js";
+import { registerUpdateRoutes } from "./src/update.js";
 import { createAuth } from "./src/auth.js";
 import { createUsersRepository } from "./src/repositories/users.js";
 import { createCatalogRepository } from "./src/repositories/catalog.js";
@@ -22,6 +23,7 @@ const resolver = createDefaultResolver({
 const app = createApp({ auth, catalog, config, resolver });
 registerXtreamRoutes(app, { auth, catalog, config });
 registerStreamRoutes(app, { auth, catalog, resolver, config });
+registerUpdateRoutes(app, { config });
 
 const server = app.listen(config.port, () => {
   console.log(`Xtream API listening on ${config.port}`);

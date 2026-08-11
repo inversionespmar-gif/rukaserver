@@ -176,6 +176,100 @@ class TvPlayer(private val context: Context) {
         player.addListener(listener)
     }
 
+    fun getSubtitleTracks(): List<SubtitleTrackInfo> {
+        val tracks = runCatching { player.currentTracks }.getOrNull() ?: return emptyList()
+        val result = mutableListOf<SubtitleTrackInfo>()
+        var count = 1
+        for (group in tracks.groups) {
+            if (group.type == C.TRACK_TYPE_TEXT) {
+                val mediaGroup = group.mediaTrackGroup
+                for (i in 0 until mediaGroup.length) {
+                    val format = mediaGroup.getFormat(i)
+                    val lang = format.language ?: ""
+                    val label = format.label ?: if (lang.isNotBlank()) lang.uppercase() else "Subtítulo $count"
+                    result.add(
+                        SubtitleTrackInfo(
+                            id = "${mediaGroup.id}_$i",
+                            label = label,
+                            language = lang,
+                            isSelected = group.isTrackSelected(i),
+                            trackGroup = mediaGroup,
+                            trackIndex = i
+                        )
+                    )
+                    count++
+                }
+            }
+        }
+        return result
+    }
+
+    fun selectSubtitleTrack(track: SubtitleTrackInfo?) {
+        val currentParams = player.trackSelectionParameters
+        val newParams = if (track == null) {
+            currentParams.buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                .build()
+        } else if (track.trackGroup != null) {
+            currentParams.buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                .addOverride(androidx.media3.common.TrackSelectionOverride(track.trackGroup, track.trackIndex))
+                .build()
+        } else currentParams
+
+        player.trackSelectionParameters = newParams
+    }
+
+    fun getVideoQualities(): List<VideoQualityInfo> {
+        val tracks = runCatching { player.currentTracks }.getOrNull() ?: return emptyList()
+        val result = mutableListOf<VideoQualityInfo>()
+        for (group in tracks.groups) {
+            if (group.type == C.TRACK_TYPE_VIDEO) {
+                val mediaGroup = group.mediaTrackGroup
+                for (i in 0 until mediaGroup.length) {
+                    val format = mediaGroup.getFormat(i)
+                    val h = format.height
+                    val label = if (h > 0) "${h}p" else "Calidad ${result.size + 1}"
+                    result.add(
+                        VideoQualityInfo(
+                            id = "${mediaGroup.id}_$i",
+                            label = label,
+                            width = format.width,
+                            height = format.height,
+                            bitrate = format.bitrate,
+                            isSelected = group.isTrackSelected(i),
+                            trackGroup = mediaGroup,
+                            trackIndex = i
+                        )
+                    )
+                }
+            }
+        }
+        return result
+    }
+
+    fun selectVideoQuality(qualityId: String) {
+        val currentParams = player.trackSelectionParameters
+        if (qualityId == "AUTO") {
+            player.trackSelectionParameters = currentParams.buildUpon()
+                .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, false)
+                .build()
+            return
+        }
+        val qualities = getVideoQualities()
+        val match = qualities.find { it.id == qualityId || it.label == qualityId }
+        if (match != null && match.trackGroup != null) {
+            player.trackSelectionParameters = currentParams.buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, false)
+                .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+                .addOverride(androidx.media3.common.TrackSelectionOverride(match.trackGroup, match.trackIndex))
+                .build()
+        }
+    }
+
     fun release() {
         runCatching {
             player.stop()
@@ -184,3 +278,24 @@ class TvPlayer(private val context: Context) {
         }.onFailure { Log.e("TvPlayer", "Error releasing player", it) }
     }
 }
+
+data class SubtitleTrackInfo(
+    val id: String,
+    val label: String,
+    val language: String,
+    val isSelected: Boolean,
+    val trackGroup: androidx.media3.common.TrackGroup?,
+    val trackIndex: Int
+)
+
+data class VideoQualityInfo(
+    val id: String,
+    val label: String,
+    val width: Int,
+    val height: Int,
+    val bitrate: Int,
+    val isSelected: Boolean,
+    val trackGroup: androidx.media3.common.TrackGroup?,
+    val trackIndex: Int
+)
+

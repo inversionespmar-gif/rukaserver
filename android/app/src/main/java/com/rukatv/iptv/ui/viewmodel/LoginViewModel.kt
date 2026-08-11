@@ -53,6 +53,13 @@ class LoginViewModel(
         }
     }
 
+    fun logout() {
+        viewModelScope.launch {
+            store.clear()
+            _state.value = LoginUiState()
+        }
+    }
+
     private fun MutableStateFlow<LoginUiState>.update(f: (LoginUiState) -> LoginUiState) {
         value = f(value)
     }
