@@ -25,8 +25,16 @@ data class UpdateInfo(
 
 class UpdateRepository {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
+
+    private val downloadClient = client.newBuilder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.MINUTES)
+        .writeTimeout(10, TimeUnit.MINUTES)
         .build()
 
     private val moshi = Moshi.Builder()
@@ -39,14 +47,23 @@ class UpdateRepository {
         runCatching {
             val baseUrl = if (hostUrl.startsWith("http")) hostUrl else "http://$hostUrl"
             val cleanUrl = "${baseUrl.trimEnd('/')}/api/version"
-            val request = Request.Builder().url(cleanUrl).build()
+            val request = Request.Builder()
+                .url(cleanUrl)
+                .header("User-Agent", "RukaTV-App/1.0")
+                .build()
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
                 val bodyString = response.body?.string()
                 if (!bodyString.isNullOrEmpty()) {
                     val info = jsonAdapter.fromJson(bodyString)
                     if (info != null && info.versionCode > currentVersionCode) {
-                        return@withContext info
+                        val finalApkUrl = if (info.apkUrl.startsWith("http")) {
+                            info.apkUrl
+                        } else {
+                            val hostBase = baseUrl.trimEnd('/')
+                            "$hostBase/${info.apkUrl.trimStart('/')}"
+                        }
+                        return@withContext info.copy(apkUrl = finalApkUrl)
                     }
                 }
             }
@@ -60,9 +77,21 @@ class UpdateRepository {
         onProgress: (Float) -> Unit
     ): Boolean = withContext(Dispatchers.IO) {
         runCatching {
-            val request = Request.Builder().url(apkUrl).build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) return@withContext false
+            val request = Request.Builder()
+                .url(apkUrl)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RukaTV-Updater/1.0")
+                .header("Accept", "*/*")
+                .build()
+            val response = downloadClient.newCall(request).execute()
+
+            if (!response.isSuccessful) {
+                android.util.Log.e("UpdateRepo", "Download failed HTTP code: ${response.code}")
+                // Fallback to system browser if HTTP request failed (e.g. 404 or redirect issue)
+                withContext(Dispatchers.Main) {
+                    openInBrowser(context, apkUrl)
+                }
+                return@withContext false
+            }
 
             val body = response.body ?: return@withContext false
             val contentLength = body.contentLength()
@@ -72,13 +101,18 @@ class UpdateRepository {
 
             body.byteStream().use { input ->
                 FileOutputStream(apkFile).use { output ->
-                    val buffer = ByteArray(8192)
+                    val buffer = ByteArray(16384)
                     var bytesRead: Int
                     var totalRead = 0L
+                    var lastReportedTime = System.currentTimeMillis()
+
                     while (input.read(buffer).also { bytesRead = it } != -1) {
                         output.write(buffer, 0, bytesRead)
                         totalRead += bytesRead
-                        if (contentLength > 0) {
+                        val now = System.currentTimeMillis()
+
+                        if (contentLength > 0 && (now - lastReportedTime > 100)) {
+                            lastReportedTime = now
                             val progress = totalRead.toFloat() / contentLength.toFloat()
                             withContext(Dispatchers.Main) { onProgress(progress) }
                         }
@@ -87,10 +121,26 @@ class UpdateRepository {
             }
 
             withContext(Dispatchers.Main) {
+                onProgress(1.0f)
                 installApk(context, apkFile)
             }
             true
-        }.getOrElse { false }
+        }.getOrElse { error ->
+            android.util.Log.e("UpdateRepo", "Download error: ${error.message}", error)
+            withContext(Dispatchers.Main) {
+                openInBrowser(context, apkUrl)
+            }
+            false
+        }
+    }
+
+    private fun openInBrowser(context: Context, url: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } catch (_: Exception) {}
     }
 
     private fun installApk(context: Context, file: File) {

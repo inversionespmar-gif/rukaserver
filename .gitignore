@@ -15,10 +15,8 @@ android/.gradle/
 .gradle/
 local.properties
 
-# APKs - no versionar binarios compilados
+# APKs - no versionar binarios compilados (subirlos manualmente a GitHub Releases)
 *.apk
-# Excepto el APK de actualización publicado intencionalmente
-!public/update/app-release.apk
 
 # Keystore de firma - NUNCA subir a GitHub
 *.jks
