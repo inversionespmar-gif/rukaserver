@@ -103,7 +103,7 @@ private fun AppContent(credsStore: CredentialsStore, favStore: FavoritesStore, p
                     progressStore = progressStore,
                     isTv = isTv,
                     onLogout = { loginVm.logout() },
-                    onPlay = { url, title -> playerQueue = listOf(PlayItem(url, title)); playerStart = 0; playerIsSeries = false },
+                    onPlay = { url, title, streamId, poster -> playerQueue = listOf(PlayItem(url, title, streamId, poster)); playerStart = 0; playerIsSeries = false },
                     onPlayQueue = { items, start -> playerQueue = items; playerStart = start; playerIsSeries = true }
                 )
             }

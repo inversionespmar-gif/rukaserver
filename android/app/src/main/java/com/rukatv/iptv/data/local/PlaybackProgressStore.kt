@@ -70,27 +70,28 @@ class PlaybackProgressStore(private val context: Context) {
             val effectiveStreamId = if (streamId > 0) streamId else extractIdFromUrl(url)
 
             // Save structured ContinueWatching item if title is provided
-            if (effectiveStreamId > 0 && title.isNotBlank()) {
+            if (title.isNotBlank()) {
                 val rawItems = prefs[itemsKey]
                 val array = if (!rawItems.isNullOrBlank()) JSONArray(rawItems) else JSONArray()
-                val newArray = JSONArray()
+                val list = mutableListOf<JSONObject>()
 
                 var existingPoster = poster
 
-                // Remove existing entry for same streamId (retain poster if current is blank)
                 for (i in 0 until array.length()) {
                     val itemObj = array.getJSONObject(i)
-                    val sId = itemObj.optLong("streamId")
-                    if (sId == effectiveStreamId) {
+                    val sId = itemObj.optLong("streamId", 0L)
+                    val itemUrl = itemObj.optString("url", "")
+
+                    val isMatch = (effectiveStreamId > 0 && sId == effectiveStreamId) || (itemUrl.isNotBlank() && itemUrl == url)
+                    if (isMatch) {
                         if (existingPoster.isBlank()) {
                             existingPoster = itemObj.optString("poster", "")
                         }
                     } else {
-                        newArray.put(itemObj)
+                        list.add(itemObj)
                     }
                 }
 
-                // If progress is between 2s and 95%, keep in continue watching
                 val isFinished = durationMs > 0 && (positionMs.toFloat() / durationMs.toFloat()) >= 0.95f
                 val isJustStarted = positionMs < 2000
 
@@ -99,15 +100,21 @@ class PlaybackProgressStore(private val context: Context) {
                         put("streamId", effectiveStreamId)
                         put("title", title)
                         put("poster", existingPoster)
+                        put("url", url)
                         put("positionMs", positionMs)
                         put("durationMs", durationMs)
                         put("isSeries", isSeries)
                         put("lastUpdated", System.currentTimeMillis())
                     }
-                    newArray.put(itemObj)
+                    // Insert newest at top
+                    list.add(0, itemObj)
                 }
 
-                prefs[itemsKey] = newArray.toString()
+                // Keep up to 50 recent items
+                val finalArray = JSONArray()
+                list.take(50).forEach { finalArray.put(it) }
+
+                prefs[itemsKey] = finalArray.toString()
             }
         }
     }

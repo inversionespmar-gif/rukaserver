@@ -69,7 +69,7 @@ import com.rukatv.iptv.ui.viewmodel.SearchViewModel
 fun SearchScreen(
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
-    onPlay: (String, String) -> Unit
+    onPlay: (String, String, Long, String) -> Unit
 ) {
     val vm = remember { SearchViewModel(catalog) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -251,7 +251,7 @@ fun SearchScreen(
                     }
                     items(state.live) { ch ->
                         ChannelRow(index = 0, name = ch.name, logo = ch.streamIcon) {
-                            onPlay(catalog.liveUrl(ch.streamId), ch.name)
+                            onPlay(catalog.liveUrl(ch.streamId), ch.name, ch.streamId, ch.streamIcon)
                         }
                     }
                 }
@@ -283,7 +283,7 @@ fun SearchScreen(
                                     rating = movie.displayRating,
                                     quality = movie.quality,
                                     year = movie.year,
-                                    onClick = { onPlay(catalog.movieUrl(movie.streamId), movie.name) }
+                                    onClick = { onPlay(catalog.movieUrl(movie.streamId), movie.name, movie.streamId, movie.poster) }
                                 )
                             }
                         }

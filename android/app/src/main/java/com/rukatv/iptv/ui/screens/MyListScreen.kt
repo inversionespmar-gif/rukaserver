@@ -55,7 +55,7 @@ fun MyListScreen(
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
     progressStore: PlaybackProgressStore? = null,
-    onPlay: (String, String) -> Unit
+    onPlay: (String, String, Long, String) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Mi Lista, 1 = Continuar viendo
 
@@ -118,8 +118,14 @@ fun MyListScreen(
                             poster = f.image,
                             onClick = {
                                 when {
-                                    f.key.startsWith("live:") -> onPlay(catalog.liveUrl(f.key.removePrefix("live:").toLongOrNull() ?: 0), f.name)
-                                    f.key.startsWith("movie:") -> onPlay(catalog.movieUrl(f.key.removePrefix("movie:").toLongOrNull() ?: 0), f.name)
+                                    f.key.startsWith("live:") -> {
+                                        val id = f.key.removePrefix("live:").toLongOrNull() ?: 0
+                                        onPlay(catalog.liveUrl(id), f.name, id, f.image)
+                                    }
+                                    f.key.startsWith("movie:") -> {
+                                        val id = f.key.removePrefix("movie:").toLongOrNull() ?: 0
+                                        onPlay(catalog.movieUrl(id), f.name, id, f.image)
+                                    }
                                     f.key.startsWith("series:") -> {
                                         val sId = f.key.removePrefix("series:").toLongOrNull() ?: 0
                                         if (sId > 0) {
@@ -127,7 +133,7 @@ fun MyListScreen(
                                                 val info = runCatching { catalog.seriesInfo(sId) }.getOrNull()
                                                 val firstEp = info?.episodes?.values?.flatten()?.firstOrNull()
                                                 if (firstEp != null) {
-                                                    onPlay(catalog.seriesUrl(firstEp.streamId), f.name)
+                                                    onPlay(catalog.seriesUrl(firstEp.streamId), f.name, firstEp.streamId, f.image)
                                                 }
                                             }
                                         }
@@ -157,7 +163,7 @@ fun MyListScreen(
                             progressFraction = item.progressFraction,
                             onClick = {
                                 val url = if (item.isSeries) catalog.seriesUrl(item.streamId) else catalog.movieUrl(item.streamId)
-                                onPlay(url, item.title)
+                                onPlay(url, item.title, item.streamId, item.poster)
                             }
                         )
                     }

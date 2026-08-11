@@ -39,7 +39,7 @@ fun HomeScreen(
     progressStore: PlaybackProgressStore? = null,
     isTv: Boolean = false,
     onLogout: () -> Unit = {},
-    onPlay: (String, String) -> Unit,
+    onPlay: (String, String, Long, String) -> Unit,
     onPlayQueue: (List<PlayItem>, Int) -> Unit
 ) {
     var current by remember { mutableStateOf(Screen.HOME) }

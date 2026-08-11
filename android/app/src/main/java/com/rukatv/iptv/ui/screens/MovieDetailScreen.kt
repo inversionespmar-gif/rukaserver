@@ -38,9 +38,13 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import com.rukatv.iptv.data.remote.dto.VodDetailMeta
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,7 +78,7 @@ fun MovieDetailScreen(
     favorites: FavoritesRepository,
     onBack: () -> Unit,
     onMovieClick: (VodStream) -> Unit,
-    onPlay: (Long, String) -> Unit
+    onPlay: (Long, String, String) -> Unit
 ) {
     BackHandler { onBack() }
 
@@ -84,15 +88,36 @@ fun MovieDetailScreen(
     val favKey = "movie:${movie.streamId}"
     val isFav = favorites.isFavorite(favSet, favKey)
 
-    // Demo cast members
-    val castMembers = remember(movie.streamId) {
-        listOf(
-            CastMember("Henry Cavill", "Protagonista", "https://image.tmdb.org/t/p/w185/h8RbYgYv7Ol2iREA72wMhKjh2IL.jpg"),
-            CastMember("Amy Adams", "Co-Protagonista", "https://image.tmdb.org/t/p/w185/vhD0ir2w1D0pM3u7iLp2Hn31yC8.jpg"),
-            CastMember("Michael Shannon", "Antagonista", "https://image.tmdb.org/t/p/w185/876c4iKkH4lU0m4K0V99Vwz8x6C.jpg"),
-            CastMember("Russell Crowe", "Secundario", "https://image.tmdb.org/t/p/w185/mgtG0A5LqS47zG5Z5pY8J9F45X.jpg"),
-            CastMember("Diane Lane", "Secundario", "https://image.tmdb.org/t/p/w185/x4B5mK387C2iWz45V0Qn2Z45.jpg")
-        )
+    // Fetch real movie details asynchronously
+    var detailedMeta by remember { mutableStateOf<com.rukatv.iptv.data.remote.dto.VodDetailMeta?>(null) }
+    LaunchedEffect(movie.streamId) {
+        runCatching { catalog.vodInfo(movie.streamId) }.onSuccess { resp ->
+            detailedMeta = resp.info
+        }
+    }
+
+    val plotText = remember(movie.streamId, detailedMeta) {
+        val p = detailedMeta?.plot
+        if (!p.isNullOrBlank()) p else if (movie.plot.isNotBlank()) movie.plot else "Disfruta de esta increíble película con la mejor calidad de audio y video en RukaTV."
+    }
+
+    val castMembers = remember(movie.streamId, detailedMeta) {
+        val rawCast = detailedMeta?.cast
+        if (!rawCast.isNullOrBlank()) {
+            rawCast.split(",", ";").map { it.trim() }.filter { it.isNotBlank() }.take(10).map { name ->
+                CastMember(name = name, role = "Reparto", photoUrl = "")
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    val backdropUrl = remember(movie.streamId, detailedMeta) {
+        detailedMeta?.coverBig?.takeIf { it.isNotBlank() }
+            ?: detailedMeta?.movieImage?.takeIf { it.isNotBlank() }
+            ?: detailedMeta?.backdropPath?.firstOrNull()?.takeIf { it.isNotBlank() }
+            ?: movie.backdrop.takeIf { it.isNotBlank() }
+            ?: movie.poster
     }
 
     // Similar movies in same category / genre
@@ -113,7 +138,7 @@ fun MovieDetailScreen(
                     .fillMaxWidth()
                     .height(340.dp)
             ) {
-                val imageUrl = if (movie.backdrop.isNotBlank()) movie.backdrop else movie.poster
+                val imageUrl = backdropUrl
                 if (imageUrl.isNotBlank()) {
                     AsyncImage(
                         model = imageUrl,
@@ -232,7 +257,7 @@ fun MovieDetailScreen(
                     icon = Icons.Filled.PlayArrow,
                     isPrimary = true,
                     modifier = Modifier.weight(1.3f),
-                    onClick = { onPlay(movie.streamId, movie.name) }
+                    onClick = { onPlay(movie.streamId, movie.name, movie.poster) }
                 )
 
                 // Watchlist Button
@@ -309,7 +334,7 @@ fun MovieDetailScreen(
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(castMembers) { cast ->
+                    items(castMembers) { cast: CastMember ->
                         CastCard(cast)
                     }
                 }

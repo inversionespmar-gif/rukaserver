@@ -40,6 +40,14 @@ interface XtreamApi {
     ): List<VodStream>
 
     @GET("player_api.php")
+    suspend fun vodInfo(
+        @Query("username") username: String,
+        @Query("password") password: String,
+        @Query("action") action: String = "get_vod_info",
+        @Query("vod_id") vodId: Long
+    ): com.rukatv.iptv.data.remote.dto.VodInfoResponse
+
+    @GET("player_api.php")
     suspend fun seriesCategories(
         @Query("username") username: String,
         @Query("password") password: String,

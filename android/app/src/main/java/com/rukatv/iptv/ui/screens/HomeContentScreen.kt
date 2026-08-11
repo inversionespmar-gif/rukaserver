@@ -49,7 +49,7 @@ fun HomeContentScreen(
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
     progressStore: PlaybackProgressStore? = null,
-    onPlay: (String, String) -> Unit,
+    onPlay: (String, String, Long, String) -> Unit,
     onNavigate: (String) -> Unit = {}
 ) {
     val vm = remember { MoviesViewModel(catalog, progressStore) }
@@ -69,7 +69,7 @@ fun HomeContentScreen(
             favorites = favorites,
             onBack = { selectedMovie = null },
             onMovieClick = { selectedMovie = it },
-            onPlay = { id, title -> onPlay(catalog.movieUrl(id), title) }
+            onPlay = { id, title, poster -> onPlay(catalog.movieUrl(id), title, id, poster) }
         )
         return
     }
@@ -84,7 +84,7 @@ fun HomeContentScreen(
                 item {
                     HeroCarousel(
                         featuredMovies = state.featuredMovies,
-                        onPlay = { movie -> onPlay(catalog.movieUrl(movie.streamId), movie.name) },
+                        onPlay = { movie -> onPlay(catalog.movieUrl(movie.streamId), movie.name, movie.streamId, movie.poster) },
                         onDetails = { movie -> selectedMovie = movie }
                     )
                 }
@@ -109,7 +109,7 @@ fun HomeContentScreen(
                                 progressFraction = item.progressFraction,
                                 onClick = {
                                     val url = if (item.isSeries) catalog.seriesUrl(item.streamId) else catalog.movieUrl(item.streamId)
-                                    onPlay(url, item.title)
+                                    onPlay(url, item.title, item.streamId, item.poster)
                                 }
                             )
                         }

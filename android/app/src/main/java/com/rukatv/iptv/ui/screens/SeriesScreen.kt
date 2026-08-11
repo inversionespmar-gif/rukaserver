@@ -74,7 +74,7 @@ import kotlinx.coroutines.launch
 fun SeriesScreen(
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
-    onPlay: (String, String) -> Unit,
+    onPlay: (String, String, Long, String) -> Unit,
     onPlayQueue: (List<PlayItem>, Int) -> Unit
 ) {
     val vm = remember { SeriesViewModel(catalog) }
@@ -530,7 +530,7 @@ internal fun SeriesDetail(
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
     onBack: () -> Unit,
-    onPlay: (String, String) -> Unit,
+    onPlay: (String, String, Long, String) -> Unit,
     onPlayQueue: (List<PlayItem>, Int) -> Unit
 ) {
     val favSet by favorites.favorites.collectAsStateWithLifecycle(emptySet())
@@ -565,7 +565,9 @@ internal fun SeriesDetail(
             (data.episodes[season.seasonNumber.toString()] ?: emptyList()).map { ep ->
                 PlayItem(
                     url = catalog.seriesUrl(ep.streamId),
-                    title = "${series.name} S${season.seasonNumber}E${ep.episodeNum}"
+                    title = "${series.name} S${season.seasonNumber}E${ep.episodeNum}",
+                    streamId = ep.streamId,
+                    poster = series.poster
                 )
             }
         }

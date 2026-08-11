@@ -59,7 +59,7 @@ fun CategoryDetailScreen(
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
     onBack: () -> Unit,
-    onPlay: (String, String) -> Unit,
+    onPlay: (String, String, Long, String) -> Unit,
     onPlayQueue: (List<PlayItem>, Int) -> Unit
 ) {
     BackHandler { onBack() }

@@ -71,7 +71,7 @@ fun MoviesScreen(
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
     progressStore: PlaybackProgressStore? = null,
-    onPlay: (String, String) -> Unit
+    onPlay: (String, String, Long, String) -> Unit
 ) {
     val vm = remember { MoviesViewModel(catalog, progressStore) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -102,7 +102,7 @@ fun MoviesScreen(
             favorites = favorites,
             onBack = { selectedMovie = null },
             onMovieClick = { selectedMovie = it },
-            onPlay = { id, title -> onPlay(catalog.movieUrl(id), title) }
+            onPlay = { id, title, poster -> onPlay(catalog.movieUrl(id), title, id, poster) }
         )
         return
     }
@@ -191,7 +191,7 @@ fun MoviesScreen(
                             Box(modifier = Modifier.padding(horizontal = 14.dp).padding(top = 6.dp)) {
                                 HeroCarousel(
                                     featuredMovies = state.featuredMovies,
-                                    onPlay = { movie -> onPlay(catalog.movieUrl(movie.streamId), movie.name) },
+                                    onPlay = { movie -> onPlay(catalog.movieUrl(movie.streamId), movie.name, movie.streamId, movie.poster) },
                                     onDetails = { movie -> selectedMovie = movie }
                                 )
                             }
@@ -228,7 +228,7 @@ fun MoviesScreen(
                                             progressFraction = item.progressFraction,
                                             onClick = {
                                                 val url = if (item.isSeries) catalog.seriesUrl(item.streamId) else catalog.movieUrl(item.streamId)
-                                                onPlay(url, item.title)
+                                                onPlay(url, item.title, item.streamId, item.poster)
                                             }
                                         )
                                     }

@@ -65,6 +65,25 @@ data class VodStream(
         get() = releaseDate.startsWith("2026") || releaseDate.startsWith("2025")
 }
 
+data class VodInfoResponse(
+    val info: VodDetailMeta? = null,
+    @Json(name = "movie_data") val movieData: VodStream? = null
+)
+
+data class VodDetailMeta(
+    val name: String? = null,
+    val plot: String? = null,
+    val cast: String? = null,
+    val director: String? = null,
+    val genre: String? = null,
+    @Json(name = "release_date") val releaseDate: String? = null,
+    val rating: String? = null,
+    @Json(name = "episode_run_time") val duration: String? = null,
+    @Json(name = "cover_big") val coverBig: String? = null,
+    @Json(name = "movie_image") val movieImage: String? = null,
+    @Json(name = "backdrop_path") val backdropPath: List<String> = emptyList()
+)
+
 data class SeriesItem(
     @Json(name = "series_id") val seriesId: Long = 0,
     val name: String = "",

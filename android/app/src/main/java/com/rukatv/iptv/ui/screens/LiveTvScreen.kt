@@ -80,7 +80,7 @@ import kotlinx.coroutines.launch
 fun LiveTvScreen(
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
-    onPlay: (String, String) -> Unit,
+    onPlay: (String, String, Long, String) -> Unit,
     onFullscreen: (Boolean) -> Unit = {}
 ) {
     val vm = remember { LiveTvViewModel(catalog) }
