@@ -40,7 +40,8 @@ fun HomeScreen(
     isTv: Boolean = false,
     onLogout: () -> Unit = {},
     onPlay: (String, String, Long, String) -> Unit,
-    onPlayQueue: (List<PlayItem>, Int) -> Unit
+    onPlayQueue: (List<PlayItem>, Int) -> Unit,
+    onPlayAtPosition: (String, String, Long, String, Long) -> Unit = { url, title, streamId, poster, _ -> onPlay(url, title, streamId, poster) }
 ) {
     var current by remember { mutableStateOf(Screen.HOME) }
     var fullscreen by remember { mutableStateOf(false) }
@@ -109,8 +110,8 @@ fun HomeScreen(
                 onNavigate = onSelectNav
             )
             Screen.LIVE    -> LiveTvScreen(catalog, favorites, onPlay, onFullscreen = { fullscreen = it })
-            Screen.MOVIES  -> MoviesScreen(catalog, favorites, progressStore, onPlay)
-            Screen.SERIES  -> SeriesScreen(catalog, favorites, onPlay, onPlayQueue)
+            Screen.MOVIES  -> MoviesScreen(catalog, favorites, progressStore, onPlay, onPlayAtPosition)
+            Screen.SERIES  -> SeriesScreen(catalog, favorites, onPlay, onPlayQueue, onPlayAtPosition)
             Screen.SEARCH  -> SearchScreen(catalog, favorites, onPlay)
             Screen.FAVORITES, Screen.MYLIST -> MyListScreen(catalog, favorites, progressStore, onPlay)
             Screen.SETTINGS -> SettingsScreen(onLogout = onLogout)

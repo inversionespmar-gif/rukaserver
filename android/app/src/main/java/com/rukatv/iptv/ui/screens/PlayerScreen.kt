@@ -111,6 +111,7 @@ fun PlayerScreen(
     startIndex: Int = 0,
     isSeries: Boolean = false,
     progressStore: PlaybackProgressStore,
+    startPositionMs: Long = 0L,
     onExit: () -> Unit
 ) {
     val context = LocalContext.current
@@ -237,20 +238,26 @@ fun PlayerScreen(
         hasPlaybackError = false
         errorMessage = null
 
-        // Check for saved progress
-        val playUrl = queue.getOrNull(index)?.url
-        if (playUrl != null) {
-            val savedPos = runCatching { progressStore.getProgress(playUrl).first() }.getOrNull()
-            if (savedPos != null && savedPos > 5000) {
-                resumePosition = savedPos
-                val totalSec = savedPos / 1000
-                resumeTimestampText = "%d:%02d".format(totalSec / 60, totalSec % 60)
-                resumeOverlayVisible = true
-            }
-        }
-
         if (queue.isNotEmpty()) {
             player.prepare(queue[index.coerceIn(0, queue.lastIndex)].url)
+        }
+
+        // If startPositionMs is provided (from mini player), seek directly — no resume overlay.
+        if (index == startIndex && startPositionMs > 5000) {
+            delay(800) // wait for player to buffer before seeking
+            runCatching { player.player.seekTo(startPositionMs) }
+        } else {
+            // Check for saved progress and show resume overlay
+            val playUrl = queue.getOrNull(index)?.url
+            if (playUrl != null) {
+                val savedPos = runCatching { progressStore.getProgress(playUrl).first() }.getOrNull()
+                if (savedPos != null && savedPos > 5000) {
+                    resumePosition = savedPos
+                    val totalSec = savedPos / 1000
+                    resumeTimestampText = "%d:%02d".format(totalSec / 60, totalSec % 60)
+                    resumeOverlayVisible = true
+                }
+            }
         }
 
         // Show "Skip intro" for the first 10s of a series episode (Netflix style).

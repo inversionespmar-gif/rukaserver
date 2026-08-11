@@ -71,7 +71,8 @@ fun MoviesScreen(
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
     progressStore: PlaybackProgressStore? = null,
-    onPlay: (String, String, Long, String) -> Unit
+    onPlay: (String, String, Long, String) -> Unit,
+    onPlayAtPosition: (String, String, Long, String, Long) -> Unit = { url, title, streamId, poster, _ -> onPlay(url, title, streamId, poster) }
 ) {
     val vm = remember { MoviesViewModel(catalog, progressStore) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -100,9 +101,11 @@ fun MoviesScreen(
             allMovies = state.allMovies,
             catalog = catalog,
             favorites = favorites,
+            progressStore = progressStore,
             onBack = { selectedMovie = null },
             onMovieClick = { selectedMovie = it },
-            onPlay = { id, title, poster -> onPlay(catalog.movieUrl(id), title, id, poster) }
+            onPlay = { id, title, poster -> onPlay(catalog.movieUrl(id), title, id, poster) },
+            onPlayAtPosition = { id, title, poster, posMs -> onPlayAtPosition(catalog.movieUrl(id), title, id, poster, posMs) }
         )
         return
     }

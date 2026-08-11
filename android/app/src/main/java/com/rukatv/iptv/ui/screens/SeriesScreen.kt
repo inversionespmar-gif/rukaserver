@@ -68,6 +68,12 @@ import com.rukatv.iptv.ui.theme.Background
 import com.rukatv.iptv.ui.theme.Surface
 import com.rukatv.iptv.ui.viewmodel.SeriesCategoryRow
 import com.rukatv.iptv.ui.viewmodel.SeriesViewModel
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.runtime.mutableLongStateOf
+import com.rukatv.iptv.ui.components.EmbeddedMiniPlayer
 import kotlinx.coroutines.launch
 
 @Composable
@@ -75,7 +81,8 @@ fun SeriesScreen(
     catalog: CatalogRepository,
     favorites: FavoritesRepository,
     onPlay: (String, String, Long, String) -> Unit,
-    onPlayQueue: (List<PlayItem>, Int) -> Unit
+    onPlayQueue: (List<PlayItem>, Int) -> Unit,
+    onPlayAtPosition: (String, String, Long, String, Long) -> Unit = { url, title, streamId, poster, _ -> onPlay(url, title, streamId, poster) }
 ) {
     val vm = remember { SeriesViewModel(catalog) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -120,6 +127,7 @@ fun SeriesScreen(
             favorites = favorites,
             onBack = { selected = null },
             onPlay = onPlay,
+            onPlayAtPosition = onPlayAtPosition,
             onPlayQueue = onPlayQueue
         )
         return
@@ -531,6 +539,7 @@ internal fun SeriesDetail(
     favorites: FavoritesRepository,
     onBack: () -> Unit,
     onPlay: (String, String, Long, String) -> Unit,
+    onPlayAtPosition: (String, String, Long, String, Long) -> Unit = { url, title, streamId, poster, _ -> onPlay(url, title, streamId, poster) },
     onPlayQueue: (List<PlayItem>, Int) -> Unit
 ) {
     val favSet by favorites.favorites.collectAsStateWithLifecycle(emptySet())
@@ -540,6 +549,8 @@ internal fun SeriesDetail(
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var selectedSeason by remember { mutableIntStateOf(1) }
+    var selectedEpisodeStreamId by remember { mutableStateOf<Long?>(null) }
+    var miniPlayerPositionMs by remember { mutableLongStateOf(0L) }
 
     BackHandler { onBack() }
 
@@ -552,14 +563,12 @@ internal fun SeriesDetail(
     if (error != null) return ErrorState(error!!) {}
     val data = info ?: return
 
-    // Set initial season to first available
     LaunchedEffect(data.seasons) {
         if (data.seasons.isNotEmpty() && selectedSeason > data.seasons.size) {
             selectedSeason = data.seasons.firstOrNull()?.seasonNumber ?: 1
         }
     }
 
-    // Flat ordered playlist across all seasons for autoplay-next
     val playlist = remember(data) {
         data.seasons.flatMap { season ->
             (data.episodes[season.seasonNumber.toString()] ?: emptyList()).map { ep ->
@@ -576,262 +585,383 @@ internal fun SeriesDetail(
         playlist.indexOfFirst { it.url == catalog.seriesUrl(streamId) }.coerceAtLeast(0)
     }
     val isFav = favSet.contains(favId)
-
-    // Current season episodes
     val currentEpisodes = data.episodes[selectedSeason.toString()] ?: emptyList()
 
-    LazyColumn(modifier = Modifier.fillMaxSize().background(Background)) {
-        // Hero banner
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-            ) {
-                if (series.poster.isNotBlank()) {
-                    AsyncImage(
-                        model = series.poster,
-                        contentDescription = series.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+    // Determine first episode URL for mini player
+    val firstEp = currentEpisodes.firstOrNull()
+    val selectedEp = if (selectedEpisodeStreamId != null)
+        currentEpisodes.firstOrNull { it.streamId == selectedEpisodeStreamId } else firstEp
+    val miniPlayerUrl = selectedEp?.let { catalog.seriesUrl(it.streamId) } ?: ""
+    val miniPlayerTitle = selectedEp?.let { ep ->
+        "${series.name} S${selectedSeason}E${ep.episodeNum}"
+    } ?: series.name
+
+    // Meta info
+    val plot = data.info.plot.ifBlank { series.plot.ifBlank { "Una serie imperdible disponible en HD y 4K en RukaTV." } }
+    val rating = data.info.rating.takeIf { it.isNotBlank() && it != "0" } ?: series.displayRating
+    val backdropUrl = data.info.backdropPath.takeIf { it.isNotBlank() }
+        ?: data.info.posterPath.takeIf { it.isNotBlank() }
+        ?: series.cover.takeIf { it.isNotBlank() }
+        ?: series.poster
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Full-screen backdrop
+        if (backdropUrl.isNotBlank()) {
+            AsyncImage(
+                model = backdropUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(Color(0xCC060A12), Color(0xF2060A12)),
+                        radius = 1500f
                     )
-                } else {
-                    Box(modifier = Modifier.fillMaxSize().background(Surface))
-                }
-                // Bottom fade to background
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color(0x33000000),
-                                    0.45f to Color.Transparent,
-                                    1.0f to Background
-                                )
-                            )
-                        )
                 )
-                // Back button
+        )
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
+            // Back button
+            item {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(14.dp)
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
                         .clip(CircleShape)
                         .background(Color(0x88000000))
+                        .border(1.dp, Color(0x33FFFFFF), CircleShape)
                         .clickable { onBack() }
-                        .padding(10.dp)
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Volver",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = Color.White,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text("Volver", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
                 }
-                // Title + action buttons at bottom of hero
-                Column(
+            }
+
+            // 2-column main layout
+            item {
+                Row(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Text(
-                        text = series.name,
-                        color = Color.White,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // Play from beginning
-                        if (playlist.isNotEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Accent)
-                                    .clickable { onPlayQueue(playlist, 0) }
-                                    .padding(horizontal = 18.dp, vertical = 9.dp)
+                    // LEFT: Metadata
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Title + Rating
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = series.name,
+                                color = Color.White,
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.Black,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
+                                Text(rating, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        // T1-E12 info
+                        Text(
+                            text = buildString {
+                                if (data.seasons.isNotEmpty()) append("T${selectedSeason}")
+                                val epCount = currentEpisodes.size
+                                if (epCount > 0) append(" • E$epCount")
+                                if (series.year.isNotBlank()) append(" | ${series.year}")
+                            },
+                            color = Accent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        // Genres from category
+                        if (series.categoryName.isNotBlank()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text("Género:", color = Color(0xFF94A3B8), fontSize = 13.sp)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color(0x22FFFFFF))
+                                        .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(20.dp))
+                                        .padding(horizontal = 10.dp, vertical = 3.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.PlayArrow,
-                                        contentDescription = "Reproducir",
-                                        tint = Color(0xFF06231F),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text("Reproducir", color = Color(0xFF06231F), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(series.categoryName, color = Color(0xFFE2E8F0), fontSize = 11.5.sp)
                                 }
                             }
                         }
-                        // Favorite button
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .border(
-                                    1.dp,
-                                    if (isFav) Accent else Color(0xFF555555),
-                                    RoundedCornerShape(6.dp)
-                                )
-                                .background(if (isFav) Accent.copy(alpha = 0.14f) else Color.Transparent)
-                                .clickable { scope.launch { favorites.toggle(favId) } }
-                                .padding(horizontal = 16.dp, vertical = 9.dp)
+
+                        // Synopsis
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.Top
                         ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Text("Sinopsis:", color = Color(0xFF94A3B8), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = plot,
+                                color = Color(0xFFCBD5E0),
+                                fontSize = 13.sp,
+                                lineHeight = 20.sp,
+                                maxLines = 5,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    // RIGHT: Mini player
+                    Column(
+                        modifier = Modifier.weight(0.85f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (miniPlayerUrl.isNotBlank()) {
+                            EmbeddedMiniPlayer(
+                                url = miniPlayerUrl,
+                                startPositionMs = 0L,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f),
+                                onFullScreen = { currentPos ->
+                                    val epIdx = selectedEp?.let { indexOf(it.streamId) } ?: 0
+                                    onPlayQueue(playlist, epIdx)
+                                },
+                                onPositionUpdate = { pos -> miniPlayerPositionMs = pos }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Action buttons
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    DetailActionChip(
+                        text = "Pantalla completa",
+                        icon = Icons.Filled.Fullscreen,
+                        isPrimary = false,
+                        onClick = {
+                            val epIdx = selectedEp?.let { indexOf(it.streamId) } ?: 0
+                            onPlayQueue(playlist, epIdx)
+                        }
+                    )
+                    DetailActionChip(
+                        text = "Idioma",
+                        icon = Icons.Filled.Subtitles,
+                        isPrimary = false,
+                        onClick = {}
+                    )
+                    DetailActionChip(
+                        text = "Favorito",
+                        icon = if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        isPrimary = isFav,
+                        onClick = { scope.launch { favorites.toggle(favId) } }
+                    )
+                }
+            }
+
+            // Season selector
+            if (data.seasons.size > 1) {
+                item {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(data.seasons) { season ->
+                            val isSelected = selectedSeason == season.seasonNumber
+                            val interaction = remember { MutableInteractionSource() }
+                            val focused by interaction.collectIsFocusedAsState()
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(
+                                        when {
+                                            isSelected -> Accent
+                                            focused -> Color(0xFF2D3748)
+                                            else -> Color(0xFF1A202C)
+                                        }
+                                    )
+                                    .border(
+                                        width = if (focused) 2.dp else if (isSelected) 0.dp else 1.dp,
+                                        color = if (focused) Accent else Color(0x33FFFFFF),
+                                        shape = RoundedCornerShape(20.dp)
+                                    )
+                                    .focusable(interactionSource = interaction)
+                                    .clickable(interactionSource = interaction, indication = null) {
+                                        selectedSeason = season.seasonNumber
+                                        selectedEpisodeStreamId = null
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 7.dp)
                             ) {
-                                Icon(
-                                    imageVector = if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                    contentDescription = "Favorito",
-                                    tint = if (isFav) Accent else Color(0xFF888888),
-                                    modifier = Modifier.size(16.dp)
-                                )
                                 Text(
-                                    text = "Favorito",
-                                    color = if (isFav) Accent else Color(0xFF888888),
-                                    fontSize = 13.sp
+                                    "Temporada ${season.seasonNumber}",
+                                    color = if (isSelected) Color(0xFF041E19) else Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Season selector (horizontal chips)
-        if (data.seasons.size > 1) {
-            item {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    itemsIndexed(data.seasons) { index, season ->
-                        val isSelected = selectedSeason == season.seasonNumber
-                        SeasonChip(
-                            text = "Temporada ${season.seasonNumber}",
-                            isSelected = isSelected,
-                            onClick = { selectedSeason = season.seasonNumber }
+            // Episode counter + horizontal numbered buttons
+            if (currentEpisodes.isNotEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            "1-${currentEpisodes.size}",
+                            color = Accent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(currentEpisodes) { ep ->
+                                val isSelected = selectedEpisodeStreamId == ep.streamId ||
+                                    (selectedEpisodeStreamId == null && ep == firstEp)
+                                val interaction = remember { MutableInteractionSource() }
+                                val focused by interaction.collectIsFocusedAsState()
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            when {
+                                                isSelected -> Accent
+                                                focused -> Color(0xFF2D3748)
+                                                else -> Color(0x33FFFFFF)
+                                            }
+                                        )
+                                        .border(
+                                            width = if (focused) 2.dp else 0.dp,
+                                            color = if (focused) Accent else Color.Transparent,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .focusable(interactionSource = interaction)
+                                        .clickable(interactionSource = interaction, indication = null) {
+                                            selectedEpisodeStreamId = ep.streamId
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "${ep.episodeNum}",
+                                        color = if (isSelected) Color(0xFF041E19) else Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
-        } else if (data.seasons.isNotEmpty()) {
+
+            // Suggestions
             item {
-                Text(
-                    text = "Temporada ${data.seasons.first().seasonNumber}",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .padding(horizontal = 20.dp)
-                        .padding(top = 20.dp, bottom = 8.dp)
-                )
+                Column(
+                    modifier = Modifier.padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        "Quizás te guste",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                    // Use allSeries if available - here we display episodes as related content
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Show episodes from other seasons as suggestions if no external data
+                        val otherSeasonEps = data.seasons
+                            .filter { it.seasonNumber != selectedSeason }
+                            .flatMap { s -> data.episodes[s.seasonNumber.toString()] ?: emptyList() }
+                            .take(10)
+
+                        if (otherSeasonEps.isNotEmpty()) {
+                            items(otherSeasonEps) { ep ->
+                                val interaction = remember { MutableInteractionSource() }
+                                val focused by interaction.collectIsFocusedAsState()
+                                Box(
+                                    modifier = Modifier
+                                        .width(130.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (focused) Accent.copy(alpha = 0.15f) else Color(0xFF111827))
+                                        .border(1.dp, if (focused) Accent else Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+                                        .focusable(interactionSource = interaction)
+                                        .clickable(interactionSource = interaction, indication = null) {
+                                            selectedEpisodeStreamId = ep.streamId
+                                        }
+                                        .padding(12.dp)
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Icon(
+                                            Icons.Filled.PlayArrow,
+                                            contentDescription = null,
+                                            tint = if (focused) Accent else Color(0xFF64748B),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Text(
+                                            ep.title.ifBlank { "Episodio ${ep.episodeNum}" },
+                                            color = Color.White,
+                                            fontSize = 11.sp,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
+
+            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
-
-        // Episodes for selected season
-        items(currentEpisodes) { ep ->
-            EpisodeRow(
-                episodeNum = ep.episodeNum,
-                title = ep.title,
-                onClick = { onPlayQueue(playlist, indexOf(ep.streamId)) }
-            )
-        }
-
-        // Bottom spacing
-        item { Box(Modifier.height(36.dp)) }
-    }
-}
-
-@Composable
-private fun SeasonChip(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val focused = interaction.collectIsFocusedAsState().value
-
-    val bgColor = when {
-        isSelected -> Accent
-        focused -> Color(0xFF2D3748)
-        else -> Color(0xFF1A202C)
-    }
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(bgColor)
-            .border(
-                width = if (focused) 2.dp else if (isSelected) 0.dp else 1.dp,
-                color = if (focused) Accent else Color(0x33FFFFFF),
-                shape = RoundedCornerShape(20.dp)
-            )
-            .focusable(interactionSource = interaction)
-            .clickable(interactionSource = interaction, indication = null) { onClick() }
-            .padding(horizontal = 14.dp, vertical = 7.dp)
-    ) {
-        Text(
-            text = text,
-            color = if (isSelected) Color(0xFF041E19) else Color.White,
-            fontSize = 13.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-private fun EpisodeRow(
-    episodeNum: Int,
-    title: String,
-    onClick: () -> Unit
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val focused = interaction.collectIsFocusedAsState().value
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 3.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (focused) Accent.copy(alpha = 0.10f) else Surface)
-            .border(
-                width = if (focused) 1.dp else 0.dp,
-                color = if (focused) Accent else Color.Transparent,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .focusable(interactionSource = interaction)
-            .clickable(interactionSource = interaction, indication = null) { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Episode number
-        Text(
-            text = "$episodeNum",
-            color = if (focused) Accent else Color(0xFF4B5563),
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.CenterVertically)
-        )
-        // Title
-        Text(
-            text = title.ifBlank { "Episodio $episodeNum" },
-            color = if (focused) Color(0xFFE8EEF7) else Color(0xFFBBBBBB),
-            fontSize = 14.sp,
-            maxLines = 2,
-            modifier = Modifier.weight(1f)
-        )
-        // Play icon
-        Icon(
-            imageVector = Icons.Filled.PlayArrow,
-            contentDescription = "Reproducir",
-            tint = if (focused) Accent else Color(0xFF3A4050),
-            modifier = Modifier.size(16.dp)
-        )
     }
 }

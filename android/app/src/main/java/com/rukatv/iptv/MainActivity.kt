@@ -59,6 +59,7 @@ private fun AppContent(credsStore: CredentialsStore, favStore: FavoritesStore, p
     var playerQueue by remember { mutableStateOf<List<PlayItem>?>(null) }
     var playerStart by remember { mutableStateOf(0) }
     var playerIsSeries by remember { mutableStateOf(false) }
+    var playerStartPositionMs by remember { mutableStateOf(0L) }
     val loginVm = remember {
         LoginViewModel(credsStore) { host -> AuthRepository.buildApi(host) }
     }
@@ -87,9 +88,10 @@ private fun AppContent(credsStore: CredentialsStore, favStore: FavoritesStore, p
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             playerQueue != null -> {
-                PlayerScreen(playerQueue!!, playerStart, playerIsSeries, progressStore) {
+                PlayerScreen(playerQueue!!, playerStart, playerIsSeries, progressStore, playerStartPositionMs) {
                     playerQueue = null
                     playerIsSeries = false
+                    playerStartPositionMs = 0L
                 }
             }
             loginState.loggedIn != null -> {
@@ -103,8 +105,24 @@ private fun AppContent(credsStore: CredentialsStore, favStore: FavoritesStore, p
                     progressStore = progressStore,
                     isTv = isTv,
                     onLogout = { loginVm.logout() },
-                    onPlay = { url, title, streamId, poster -> playerQueue = listOf(PlayItem(url, title, streamId, poster)); playerStart = 0; playerIsSeries = false },
-                    onPlayQueue = { items, start -> playerQueue = items; playerStart = start; playerIsSeries = true }
+                    onPlay = { url, title, streamId, poster ->
+                        playerQueue = listOf(PlayItem(url, title, streamId, poster))
+                        playerStart = 0
+                        playerIsSeries = false
+                        playerStartPositionMs = 0L
+                    },
+                    onPlayQueue = { items, start ->
+                        playerQueue = items
+                        playerStart = start
+                        playerIsSeries = true
+                        playerStartPositionMs = 0L
+                    },
+                    onPlayAtPosition = { url, title, streamId, poster, positionMs ->
+                        playerQueue = listOf(PlayItem(url, title, streamId, poster))
+                        playerStart = 0
+                        playerIsSeries = false
+                        playerStartPositionMs = positionMs
+                    }
                 )
             }
             else -> {
