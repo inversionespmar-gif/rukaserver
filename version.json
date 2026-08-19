@@ -1,7 +1,7 @@
 {
-  "versionCode": 3,
-  "versionName": "1.2.0",
-  "apkUrl": "https://github.com/inversionespmar-gif/rukaserver/releases/download/v1.2.0/app-release.apk",
-  "releaseNotes": "• Nuevo rediseño Smart TV para detalles de películas y series\n• Mini reproductor embebido 16:9 con reproducción automática\n• Metadatos TMDB completos en 2 columnas (director, reparto, sinopsis, géneros)\n• Selector de episodios numérico para series y diálogo de reanudación mejorado",
+  "versionCode": 4,
+  "versionName": "1.3.0",
+  "apkUrl": "https://github.com/inversionespmar-gif/rukaserver/releases/download/v1.3.0/app-release.apk",
+  "releaseNotes": "• Solución de control remoto Smart TV en cuadro de actualización\n• Nuevo logo oficial de la aplicación RukaTV\n• Pantallas dedicadas para gestión de Descargas y Grabaciones\n• Continuidad sin reinicio desde mini reproductor a pantalla completa\n• Reconexión automática de señal en Canales de TV en Vivo",
   "forceUpdate": false
 }
