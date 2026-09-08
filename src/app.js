@@ -13,6 +13,8 @@ export function createApp({ auth, catalog, config, resolver, streamRouter }) {
   });
 
   app.get("/ping", (_req, res) => res.json({ status: "ok" }));
+  app.use("/preview", express.static("web-preview"));
+  app.use("/web", express.static("web-preview"));
   app._xtream = { auth, catalog, config };
   app._resolver = resolver;
   app._stream = streamRouter;

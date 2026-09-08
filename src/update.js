@@ -3,6 +3,8 @@ import express from "express";
 import fs from "fs";
 
 export function registerUpdateRoutes(app, { config }) {
+  // The public server may terminate TLS in a reverse proxy.
+  app.set("trust proxy", 1);
   const updateDir = path.join(process.cwd(), "public", "update");
   if (!fs.existsSync(updateDir)) {
     fs.mkdirSync(updateDir, { recursive: true });
@@ -14,8 +16,12 @@ export function registerUpdateRoutes(app, { config }) {
   // OTA Version check endpoint for Android App
   app.get(["/api/version", "/version"], (req, res) => {
     const host = req.headers.host || `localhost:${config?.port || 3000}`;
-    const protocol = req.protocol || "http";
-    const defaultApkUrl = `${protocol}://${host}/update/app-release.apk`;
+    const forwardedProtocol = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+    const protocol = forwardedProtocol || req.protocol || "http";
+    const configuredBase = process.env.RUKATV_PUBLIC_BASE_URL || config?.publicBaseUrl;
+    const defaultApkUrl = configuredBase
+      ? `${String(configuredBase).replace(/\/$/, "")}/update/app-release.apk`
+      : `${protocol}://${host}/update/app-release.apk`;
 
     const versionFile = path.join(process.cwd(), "version.json");
     let versionData = {
