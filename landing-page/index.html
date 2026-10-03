@@ -2,211 +2,60 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RukaTV | TV en vivo, películas y series</title>
-  <meta name="description" content="RukaTV conecta tu dispositivo Android directamente a Rukaserver para disfrutar canales de TV en vivo, películas de estreno y series completas en HD y 4K.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffd4e4">
+  <title>RukaTV | Tu TV, películas y series en Android</title>
+  <meta name="description" content="Descarga RukaTV 1.5.1 para móvil, tablet y Android TV. Conecta tu cuenta de Rukaserver y encuentra sus canales, películas y series.">
   <link rel="stylesheet" href="styles.css">
+  <link rel="preload" href="assets/app-home.png" as="image">
 </head>
 <body>
   <a class="skip-link" href="#contenido">Saltar al contenido</a>
-
-  <!-- ══ NAVBAR ══ -->
-  <nav class="navbar">
-    <a href="#inicio" class="nav-brand">
-      <img src="assets/logo.png" alt="RukaTV Logo" class="official-logo">
-      <span class="brand-name">RukaTV</span>
-    </a>
-    <ul class="nav-links">
-      <li><a href="#contenido" class="nav-link">Contenido</a></li>
-      <li><a href="#servidor" class="nav-link">Servidor</a></li>
-      <li><a href="#descargar" class="nav-link">Descargar</a></li>
-      <li><button type="button" onclick="openModal('modal-doc')" class="nav-link">Documentación</button></li>
-      <li><button type="button" onclick="openModal('modal-terms')" class="nav-link">Términos</button></li>
-    </ul>
-    <a href="#descargar" class="btn-primary">Descargar 1.5.1</a>
-  </nav>
-
-  <!-- ══ HERO ══ -->
+  <header class="site-header">
+    <a class="brand" href="#inicio" aria-label="RukaTV, inicio"><span class="brand-icon"><img src="assets/app-icon.png" width="192" height="192" alt=""></span>RukaTV</a>
+    <nav class="navigation" id="navigation" aria-label="Navegación principal">
+      <a href="#contenido">La app</a><a href="#instalar">Cómo instalar</a><button type="button" onclick="openModal('modal-doc')">Ayuda</button>
+    </nav>
+    <div class="header-actions"><a class="button compact" href="downloads/rukatv-1.5.1.apk" download>Descargar 1.5.1</a><button class="menu-toggle" type="button" aria-controls="navigation" aria-expanded="false" aria-label="Abrir menú"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button></div>
+  </header>
   <main>
-  <section id="inicio" class="hero">
-    <div class="hero-content">
-
-      <h1 class="hero-title">
-        Tu próxima historia.<br>
-        <span>En tu pantalla.</span>
-      </h1>
-      <p class="hero-desc">
-        TV en vivo, películas y series desde tu cuenta de Rukaserver. Abre RukaTV en tu teléfono, tablet o Android TV y elige qué ver.
-      </p>
-      <div class="hero-actions">
-        <a href="#descargar" class="btn-primary">Descargar RukaTV</a>
-        <a href="#contenido" class="btn-secondary">Explorar la app</a>
+    <section class="hero" id="inicio" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title">Hoy toca<br><span class="headline-block">darle play.</span></h1>
+        <p class="hero-description">Abre RukaTV y encuentra los canales, películas y series de tu servidor. Tú eliges qué sigue.</p>
+        <a class="button primary" href="downloads/rukatv-1.5.1.apk" download="rukatv-1.5.1.apk">Descargar RukaTV <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/></svg></a>
+        <p class="download-meta">APK 1.5.1 · 102,1 MB · Android 5.0+</p>
+        <p class="device-note">Para móvil, tablet y Android TV.</p>
       </div>
-      <p class="hero-note">Versión 1.5.1 · Android 5.0 o superior · APK universal</p>
-    </div>
-    <div class="hero-media">
-      <div class="hero-img-wrap">
-        <img src="assets/hero_banner.png" alt="RukaTV en acción" class="hero-img">
+      <div class="hero-stage">
+        <div class="phone phone-home"><img src="assets/app-home.png" width="720" height="1612" alt="Inicio real de RukaTV, con canales recientes y una película destacada"></div>
+        <div class="phone phone-series"><img src="assets/app-series.png" width="720" height="1612" alt="Pantalla real de Series en RukaTV"></div>
+        <span class="play-note">¿Qué vemos?</span>
+        <p class="screenshot-note">Capturas reales de RukaTV 1.5.1.<br>El catálogo depende de tu servidor.</p>
       </div>
-    </div>
-  </section>
-
-  <!-- ══ CONTENIDO ══ -->
-  <section id="contenido" class="section">
-    <div class="section-header">
-
-      <h2 class="section-title">Elige cómo quieres ver.</h2>
-      <p class="section-desc">Explora el catálogo de tu servidor desde una misma aplicación.</p>
-    </div>
-    <div class="content-grid">
-      <div class="content-card">
-
-        <h3 class="card-title">Televisión en Vivo</h3>
-        <p class="card-desc">Encuentra canales nacionales e internacionales, deportes, noticias y contenido infantil en el catálogo de tu servidor.</p>
-      </div>
-      <div class="content-card">
-
-        <h3 class="card-title">Películas en HD y 4K</h3>
-        <p class="card-desc">Busca por género y elige una película. La calidad disponible depende del contenido y de tu conexión.</p>
-      </div>
-      <div class="content-card">
-
-        <h3 class="card-title">Series Completas</h3>
-        <p class="card-desc">Recorre temporadas y episodios con el control remoto de tu Android TV.</p>
-      </div>
-      <div class="content-card">
-
-        <h3 class="card-title">Descargas y Grabaciones</h3>
-        <p class="card-desc">Pantallas dedicadas para gestionar tus contenidos favoritos offline y programar grabaciones de televisión en vivo directamente en tu dispositivo.</p>
-      </div>
-    </div>
-  </section>
-
-  <div class="divider"></div>
-
-  <!-- ══ SERVIDOR ══ -->
-  <section id="servidor" class="section">
-    <div class="showcase-wrap">
-      <div class="showcase-img-wrap">
-        <img src="assets/player_showcase.png" loading="lazy" alt="Rukaserver" class="showcase-img">
-      </div>
-      <div class="showcase-body">
-
-        <h2 class="section-title">Conecta tu cuenta.
-        Empieza a ver.</h2>
-        <ul class="check-list">
-          <li class="check-item">
-            <span class="check-icon">✓</span>
-            Autenticación segura mediante protocolo Xtream Codes y API REST
-          </li>
-          <li class="check-item">
-            <span class="check-icon">✓</span>
-            Streams adaptivos HLS (.m3u8) y MPEG-TS con buffer inteligente
-          </li>
-          <li class="check-item">
-            <span class="check-icon">✓</span>
-            Guía EPG en vivo con información del programa actual
-          </li>
-          <li class="check-item">
-            <span class="check-icon">✓</span>
-            Favoritos y progreso sincronizados en tu cuenta
-          </li>
-          <li class="check-item">
-            <span class="check-icon">✓</span>
-            Actualizaciones automáticas OTA desde el propio servidor
-          </li>
-          <li class="check-item">
-            <span class="check-icon">✓</span>
-            Compatible con Android 5.0+, tablets y Android TV / Smart TV
-          </li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <div class="divider"></div>
-
-  <!-- ══ DESCARGA ══ -->
-  <section id="descargar" class="download-section">
-    <div class="download-box">
-      <div class="download-badge"></div>
-      <h2 class="download-title">RukaTV 1.5.1, lista para instalar.</h2>
-      <p class="download-desc">
-        Descarga el APK e instálalo en tu dispositivo Android. Para acceder al contenido necesitas la dirección de tu servidor, tu usuario y tu contraseña.
-      </p>
-      <div class="download-actions">
-        <a
-          href="downloads/rukatv-1.5.1.apk"
-          class="btn-download"
-          id="btn-download-apk" download="rukatv-1.5.1.apk"
-        >
-          Descargar APK 1.5.1
-        </a>
-        <a
-          href="https://github.com/inversionespmar-gif/rukaserver/releases"
-          target="_blank" rel="noopener noreferrer"
-          class="btn-secondary"
-        >
-          Ver todas las versiones ↗
-        </a>
-      </div>
-      <div class="version-tag">
-        Versión 1.5.1 &nbsp;·&nbsp; 102,1 MB &nbsp;·&nbsp; Android 5.0+ y Android TV
-      </div>
-
-      <!-- PASOS DE INSTALACIÓN -->
-      <div style="margin-top: 56px; text-align: left;">
-        <div class="section-label" style="text-align: center; margin-bottom: 28px;">Cómo instalar paso a paso</div>
-        <div class="install-steps">
-          <div class="step-card">
-            <div class="step-number">1</div>
-            <h3 class="step-title">Descarga el APK</h3>
-            <div class="step-desc">Presiona el botón de descarga y guarda el archivo <code>rukatv-1.5.1.apk</code> en tu teléfono.</div>
-          </div>
-          <div class="step-card">
-            <div class="step-number">2</div>
-            <h3 class="step-title">Permite fuentes desconocidas</h3>
-            <div class="step-desc">Ve a <strong>Ajustes → Seguridad → Instalar apps desconocidas</strong> y actívalo para tu navegador o gestor de archivos.</div>
-          </div>
-          <div class="step-card">
-            <div class="step-number">3</div>
-            <h3 class="step-title">Instala el archivo</h3>
-            <div class="step-desc">Abre el APK desde tu gestor de archivos o la notificación de descarga y presiona <strong>Instalar</strong>.</div>
-          </div>
-          <div class="step-card">
-            <div class="step-number">4</div>
-            <h3 class="step-title">Inicia sesión</h3>
-            <div class="step-desc">Abre RukaTV, introduce la URL de tu servidor Rukaserver, usuario y contraseña. ¡Listo para ver!</div>
-          </div>
+    </section>
+    <div class="intro-strip"><p>En tu pantalla. Con tu cuenta.</p><span>TV en vivo · Películas · Series · Favoritos</span></div>
+    <section class="app-section section" id="contenido" aria-labelledby="app-title">
+      <div class="section-heading"><h2 id="app-title">Una app.<br>Más de una forma de ver.</h2><p>Un canal en directo, una película pendiente o el siguiente episodio. Explora RukaTV por dentro.</p></div>
+      <div class="app-explorer">
+        <div class="explorer-visual"><div class="phone explorer-phone"><img id="explorer-image" src="assets/app-tv.png" width="720" height="1612" loading="lazy" alt="Pantalla real de televisión en vivo en RukaTV"></div><span class="explorer-label" id="explorer-label">TV en vivo</span></div>
+        <div class="explorer-content"><div class="tab-list" role="tablist" aria-label="Pantallas de RukaTV"><button type="button" role="tab" id="tab-tv" aria-controls="panel-tv" aria-selected="true" data-screen="tv">TV en vivo</button><button type="button" role="tab" id="tab-movies" aria-controls="panel-movies" aria-selected="false" tabindex="-1" data-screen="movies">Películas</button><button type="button" role="tab" id="tab-series" aria-controls="panel-series" aria-selected="false" tabindex="-1" data-screen="series">Series</button></div>
+          <div class="tab-panel" role="tabpanel" id="panel-tv" aria-labelledby="tab-tv" tabindex="0"><h3>Tu televisión,<br>a mano.</h3><p>Encuentra un canal y consulta la programación disponible. Desde Inicio puedes volver al último canal y acceder a tus recientes y favoritos.</p><ul class="feature-list"><li>Canales organizados por categoría</li><li>Recientes y favoritos en Inicio</li><li>Guía de programación EPG</li></ul></div>
+          <div class="tab-panel" role="tabpanel" id="panel-movies" aria-labelledby="tab-movies" tabindex="0" hidden><h3>Elige una película.<br>O retoma la que dejaste.</h3><p>Busca en el catálogo de tu servidor, filtra por género y abre la ficha de cada película. Tu progreso te permite continuar donde quedaste.</p><ul class="feature-list"><li>Catálogo por géneros</li><li>Búsqueda y filtros</li><li>Continuar viendo</li></ul></div>
+          <div class="tab-panel" role="tabpanel" id="panel-series" aria-labelledby="tab-series" tabindex="0" hidden><h3>Un episodio más.<br>Tú decides cuándo.</h3><p>Encuentra una serie, recorre sus temporadas y elige un episodio. Guarda tus favoritos para volver a ellos después.</p><ul class="feature-list"><li>Temporadas y episodios</li><li>Fichas de las series</li><li>Mi lista de favoritos</li></ul></div>
+          <p class="catalog-note">Estas pantallas pertenecen a la app. Los títulos y canales disponibles varían según tu servidor.</p>
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- ══ FOOTER ══ -->
+    </section>
+    <section class="account-section section" id="servidor"><div><h2>Tu cuenta es<br>el punto de partida.</h2><p>RukaTV se conecta a Rukaserver con los datos que te facilita el administrador de tu cuenta.</p><a class="text-link" href="#instalar">Ver cómo empezar <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></a></div><dl class="account-fields"><div><dt>Servidor</dt><dd>La dirección de tu Rukaserver</dd></div><div><dt>Usuario</dt><dd>El nombre de tu cuenta</dd></div><div><dt>Contraseña</dt><dd>Tu clave de acceso</dd></div></dl></section>
+    <section class="install-section" id="instalar"><div class="section"><div class="section-heading"><h2>Del APK<br>a tu pantalla.</h2><p>Instala RukaTV directamente en tu Android. En Android TV, transfiere el APK al dispositivo y ábrelo con un gestor de archivos.</p></div><ol class="install-steps"><li><h3>Descarga</h3><p>Guarda el archivo <code>rukatv-1.5.1.apk</code> en el dispositivo donde vas a instalarlo.</p></li><li><h3>Permite instalar</h3><p>Si Android te lo pide, permite que tu navegador o gestor de archivos instale apps de esta fuente.</p></li><li><h3>Abre el APK</h3><p>Toca el archivo y selecciona Instalar. Después, abre RukaTV.</p></li><li><h3>Conecta tu cuenta</h3><p>Introduce el servidor, tu usuario y contraseña para acceder al catálogo.</p></li></ol></div></section>
+    <section class="download-section section" id="descargar"><div class="download-banner"><div><h2>Tu próximo play<br>empieza aquí.</h2><p>RukaTV 1.5.1 · APK universal · Android 5.0+</p></div><div class="download-actions"><a class="button primary" href="https://github.com/inversionespmar-gif/rukaserver/releases/download/v1.5.1/app-release.apk" download="rukatv-1.5.1.apk">Descargar RukaTV <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/></svg></a><p class="download-meta">102,1 MB · Para móvil, tablet y Android TV</p><a class="release-link" href="https://github.com/inversionespmar-gif/rukaserver/releases" target="_blank" rel="noopener noreferrer">Ver versiones en GitHub</a></div></div></section>
   </main>
-  <footer>
-    <div class="footer-brand">
-      <img src="assets/logo.png" alt="RukaTV" class="footer-logo">
-      <span class="footer-brand-name">RukaTV</span>
-    </div>
-    <div class="footer-links">
-      <button type="button" onclick="openModal('modal-terms')" class="footer-link">Términos y Condiciones</button>
-      <button type="button" onclick="openModal('modal-doc')" class="footer-link">Documentación</button>
-      <a href="#contenido" class="footer-link">Contenido</a>
-      <a href="#descargar" class="footer-link">Descargar</a>
-      <a href="https://github.com/inversionespmar-gif/rukaserver/releases" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub Releases ↗</a>
-    </div>
-    <p class="footer-copy">© 2026 BFstudio Group — RukaTV & Rukaserver. Todos los derechos reservados.</p>
-  </footer>
-
+  <footer class="site-footer"><a class="brand" href="#inicio"><span class="brand-icon"><img src="assets/app-icon.png" width="192" height="192" alt=""></span>RukaTV</a><div class="footer-links"><button type="button" onclick="openModal('modal-doc')">Documentación</button><button type="button" onclick="openModal('modal-terms')">Términos y condiciones</button><a href="#descargar">Descargar</a></div><p>© 2026 BFstudio Group. RukaTV y Rukaserver.</p></footer>
   <!-- ══ MODAL: Documentación ══ -->
   <div id="modal-doc" class="modal-overlay">
     <div class="modal-content">
-      <button aria-label="Cerrar ventana" class="modal-close" onclick="closeModal('modal-doc')">✕</button>
+      <button aria-label="Cerrar ventana" class="modal-close" onclick="closeModal('modal-doc')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       <h2 class="modal-title">Documentación del Servicio</h2>
       <div class="modal-body">
         <h3>1. ¿Qué es RukaTV?</h3>
@@ -234,7 +83,7 @@
   <!-- ══ MODAL: Términos ══ -->
   <div id="modal-terms" class="modal-overlay">
     <div class="modal-content">
-      <button aria-label="Cerrar ventana" class="modal-close" onclick="closeModal('modal-terms')">✕</button>
+      <button aria-label="Cerrar ventana" class="modal-close" onclick="closeModal('modal-terms')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       <h2 class="modal-title">Términos y Condiciones</h2>
       <div class="modal-body">
         <h3>1. Aceptación de los Términos</h3>
@@ -253,10 +102,11 @@
         <p>BFstudio Group no se hace responsable por interrupciones del servicio causadas por factores externos al control del servidor (cortes de internet, problemas de conectividad del usuario, etc.).</p>
 
         <h3>6. Privacidad</h3>
-        <p>Los datos de sesión, favoritos y preferencias se almacenan de forma cifrada. No compartimos información personal con terceros.</p>
+        <p>RukaTV guarda las credenciales, favoritos, historial y preferencias en el almacenamiento privado del dispositivo. Envía las credenciales al servidor que eliges para comprobar el acceso. Los servidores de contenido e imágenes reciben las solicitudes necesarias para prestar el servicio. Puedes borrar los datos locales desde los ajustes de Android.</p>
       </div>
     </div>
   </div>
+
 
   <script src="script.js"></script>
 </body>
